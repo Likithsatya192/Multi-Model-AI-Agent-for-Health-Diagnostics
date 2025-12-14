@@ -1,25 +1,27 @@
-# 🩸 AI-Powered CBC Analyzer
+## AI-Powered CBC Analyzer
 
-A state-of-the-art Multi-Agent AI system designed to analyze Complete Blood Count (CBC) reports. This tool uses OCR and advanced Large Language Models (LLMs) to scan, extract, interpret, and explain blood test results, providing clinical-grade insights and personalized health recommendations.
+Streamlit app that ingests CBC lab reports (PDF or image), performs OCR, extracts key hematology parameters, validates them against configured reference ranges, interprets them (normal / low / high), and presents the results in interactive tables with CSV export and basic charts.
 
----
+### Features
+- Upload PDF or common image formats.
+- Automatic OCR (Tesseract) with image enhancement (grayscale, autocontrast, upscale).
+- Robust parameter extraction with fuzzy matching and comma-aware number parsing.
+- Reference-range validation and simple interpretation.
+- Coverage indicator to show how many expected parameters were captured.
+- CSV download of extracted parameters and quick bar chart visualization.
 
-## 🏗️ How We Built This Project (From Scratch to Complete)
-This project was built to bridge the gap between complex medical data and patient understanding. We started with a simple goal: upload a PDF/Image of a blood report and get a clear, human-readable summary.
-
-**Evolution:**
-1.  **Phase 1: Heuristic MVP**: Initially, we used Regex and Fuzzy Matching to scrape numbers from text. It worked for perfect PDFs but failed on skewed scans or complex tables.
-2.  **Phase 2: Agentic Workflow**: We introduced **LangGraph** to create a modular pipeline. Instead of one giant script, we broke the logic into "Nodes" (Ingestion, Interpretation, Synthesis).
-3.  **Phase 3: The LLM Revolution**: We replaced the fragile Regex logic with **Llama-3.3-70b**. Now, instead of hunting for keywords, the AI *reads* the document like a human doctor, understanding context, units, and nuances.
-4.  **Phase 4: Multi-Model Intelligence**: We added specialized sub-agents:
-    *   **Pattern Recognition Agent**: Spot clinical patterns (e.g., Iron Deficiency Anemia).
-    *   **Context Agent**: Adjusts findings based on Patient Age & Gender.
-    *   **Synthesis Agent**: Writes the final "Senior Consultant" style report.
-
----
-
-## 🧠 Core Intelligence: LLM Extraction
-The heart of the application is **`nodes/extract_parameters.py`**.
+### Quickstart
+1) Install system Tesseract (required for OCR):
+   - Windows (example): `winget install -e --id UB-Mannheim.Tesseract-OCR`
+   - If needed, set the executable path:
+     - PowerShell (current session):  
+       `$env:TESSERACT_CMD = 'C:\Program Files\Tesseract-OCR\tesseract.exe'`
+     - Persist (PowerShell/CMD):  
+       `setx TESSERACT_CMD "C:\Program Files\Tesseract-OCR\tesseract.exe"`
+2) Create/activate a virtual environment.
+3) Install Python deps: `pip install -r requirements.txt`
+4) Run the app: `streamlit run app.py`
+5) Upload a CBC report (PDF or image). Review the extracted table, validation, interpretation, and download CSV if needed.
 
 ### How it works:
 1.  **Visual OCR / Text Extraction**: 
