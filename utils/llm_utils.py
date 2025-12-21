@@ -4,7 +4,7 @@ from langchain_groq import ChatGroq
 def get_llm():
     """
     Returns a configured ChatGroq instance.
-    Defaults to 'llama-3.3-70b-versatile' or similar high-performing model on Groq.
+    Defaults to 'openai/gpt-oss-120b' or similar high-performing model on Groq.
     """
     api_key = os.environ.get("GROQ_API_KEY")
     if not api_key:
@@ -14,8 +14,8 @@ def get_llm():
         pass
     
     return ChatGroq(
-        # User requested "llama-3.3-70b-versatile", mapping to strongest available OSS model on Groq: Llama 3.3 70B
-        model="llama-3.3-70b-versatile",
+        # User requested "openai/gpt-oss-120b", mapping to strongest available OSS model on Groq: openai/gpt-oss-120b
+        model="openai/gpt-oss-120b",
         temperature=0,
         max_tokens=None,
         timeout=None,

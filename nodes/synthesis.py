@@ -38,13 +38,18 @@ def synthesis_node(state):
     {context.get('analysis')}
     
     Write a clear, professional summary for the patient (layperson friendly but medically accurate).
-    Focus on what the most important takeaways are.
+    
+    FORMATTING RULES (STRICT):
+    1. Be CONCISE. limit the report to the most essential information.
+    2. Do NOT use markdown headers (like # or ##). Instead, use **Bold Text** for section titles.
+    3. Do NOT use horizontal rules (---) or separators.
+    4. Structure the content logically using paragraphs.
     
     IMPORTANT: End the detailed report with this exact signature:
     
     Sincerely,
     
-    Likith Sagar
+    **J. Likith Sagar**
     Senior Medical Consultant
     """
     

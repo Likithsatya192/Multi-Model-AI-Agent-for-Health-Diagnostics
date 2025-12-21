@@ -13,3 +13,6 @@ matplotlib
 seaborn
 rapidfuzz
 supabase
+fastapi
+uvicorn
+python-multipart

@@ -106,5 +106,87 @@ Here is how every file contributes to the project:
 *   **`reference_ranges.json`**: The database of normal blood values (Men vs Women).
 
 ---
-**Developed by Likith Sagar & Team**
+
+## 💻 Frontend Architecture (New Premium UI)
+The project now features a modern, high-performance web interface built with:
+*   **React + Vite**: For lightning-fast performance.
+*   **Tailwind CSS**: For a sleek, dark-themed "Glassmorphism" design.
+*   **Framer Motion**: For fluid animations and interactive feedback.
+*   **Firebase Auth**: For secure Google Sign-In and user management.
+
+**Key Dashboard Features:**
+- **Scroll-aware Header**: Fluid navigation.
+- **Detailed Reports**: Beautifully styled Markdown rendering for Synthesis and Risk.
+- **History Management**: Re-analyze previous reports instantly.
+
+---
+
+## 🚀 Quick Start Guide
+
+Follow these steps to set up the project locally.
+
+### Prerequisites
+*   **Python 3.10+** (Anaconda recommended)
+*   **Node.js 18+** (For the frontend)
+*   **Tesseract OCR** (Required for image processing)
+    *   *Windows*: Download installer from [UB-Mannheim/tesseract](https://github.com/UB-Mannheim/tesseract/wiki)
+    *   *Mac*: `brew install tesseract`
+
+### 1. Backend Setup (Python)
+
+**Using Anaconda (Recommended):**
+```bash
+# 1. Create a new environment
+conda create -n health_ai python=3.10
+conda activate health_ai
+
+# 2. Install dependencies
+pip install -r requirements.txt
+
+# 3. Setup Environment Variables
+# Create a .env file in the root directory and add:
+# GROQ_API_KEY=your_key_here
+```
+
+**Running the Backend API:**
+```bash
+# Start the FastAPI server (api.py)
+# This will listen for requests from the React Frontend
+python api.py
+```
+
+*(Optional) Run the Streamlit Prototype:*
+```bash
+streamlit run app.py
+```
+
+### 2. Frontend Setup (React)
+
+Open a new terminal and navigate to the `frontend` folder:
+
+```bash
+cd frontend
+
+# 1. Install dependencies
+npm install
+
+# 2. Setup Frontend Environment
+# Create a .env file in 'frontend/' and add:
+# VITE_FIREBASE_API_KEY=your_api_key
+# VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+# VITE_FIREBASE_PROJECT_ID=your_project_id
+# VITE_FIREBASE_STORAGE_BUCKET=your_bucket.appspot.com
+# VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+# VITE_FIREBASE_APP_ID=your_app_id
+
+# 3. Start the Development Server
+npm run dev
+```
+
+Visit `http://localhost:5173` to launch the application.
+
+---
+
+**Developed by J. Likith Sagar & Team**
 *AI Automation Project*
+

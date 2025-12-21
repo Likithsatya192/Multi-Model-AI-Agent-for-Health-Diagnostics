@@ -14,7 +14,9 @@ def recommendations_node(state):
         return {"recommendations": []}
 
     llm = get_llm()
-    structured_llm = llm.with_structured_output(RecsOutput)
+    # structured_llm = llm.with_structured_output(RecsOutput)
+    from langchain_core.output_parsers import PydanticOutputParser
+    parser = PydanticOutputParser(pydantic_object=RecsOutput)
     
     prompt = f"""
     Based on the following medical report summary:
@@ -23,10 +25,13 @@ def recommendations_node(state):
     
     Provide 3-5 actionable health, diet, or lifestyle recommendations.
     Be specific but safe (always advise consulting a doctor).
+    
+    {parser.get_format_instructions()}
     """
     
     try:
-        response = structured_llm.invoke(prompt)
-        return {"recommendations": response.recommendations}
+        response = llm.invoke(prompt)
+        parsed = parser.invoke(response)
+        return {"recommendations": parsed.recommendations}
     except Exception as e:
         return {"errors": state.errors + [f"Recommendations Node failed: {str(e)}"]}

@@ -24,7 +24,9 @@ def model3_context_node(state):
         return {"context_analysis": {}}
 
     llm = get_llm()
-    structured_llm = llm.with_structured_output(ContextOutput)
+    # structured_llm = llm.with_structured_output(ContextOutput)
+    from langchain_core.output_parsers import PydanticOutputParser
+    parser = PydanticOutputParser(pydantic_object=ContextOutput)
     
     data_str = "\n".join([f"{k}: {v['value']} {v.get('unit','')}" for k, v in validated.items()])
     patterns_str = ", ".join(patterns)
@@ -44,14 +46,17 @@ def model3_context_node(state):
     
     Provide a brief contextual analysis. 
     If age/gender is unknown, provide general guidance on how these factors usually influence interpretation for the identified patterns.
+    
+    {parser.get_format_instructions()}
     """
 
     try:
-        response = structured_llm.invoke(prompt)
+        response = llm.invoke(prompt)
+        parsed = parser.invoke(response)
         return {
             "context_analysis": {
-                "analysis": response.analysis,
-                "adjusted_concerns": response.adjusted_concerns
+                "analysis": parsed.analysis,
+                "adjusted_concerns": parsed.adjusted_concerns
             }
         }
     except Exception as e:

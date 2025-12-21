@@ -87,7 +87,9 @@ def extract_parameters_node(state):
         return {"extracted_params": {}, "errors": state.errors + ["No text to extract from."]}
 
     llm = get_llm()
-    structured_llm = llm.with_structured_output(ExtractionOutput)
+    # structured_llm = llm.with_structured_output(ExtractionOutput)
+    from langchain_core.output_parsers import PydanticOutputParser
+    parser = PydanticOutputParser(pydantic_object=ExtractionOutput)
     
     prompt = f"""
     Extract CBC blood test parameters and patient info from the following OCR text.
@@ -96,17 +98,25 @@ def extract_parameters_node(state):
     {text}
     
     RULES:
-    - Extract ONLY the "Result" value. Do not extract Reference Range numbers!
-    - For Platelets, usually >100,000. If text says "1.5" lakhs, convert to 150000.
-    - If a value is missing, match it to None.
-    - Extract Patient Name, Age, Gender if available.
+    1. Extract ONLY the "Result" value. Do not extract Reference Range numbers!
+    2. Platelet Count Sanity Check:
+       - If the text says "20000" but the reference range is 150000+, reports sometimes omit the last zero or OCR misses it.
+       - IF the row says "Normal" but the value is 20,000, it is likely 200,000. Extract 200000.
+       - IF the row says "Low" or has no flag, trust the 20,000.
+    3. Formatting:
+       - "1.5 lakhs" -> 150000.
+       - "4.5 million" -> 4.5.
+    4. If a value is missing, return null.
+    
+    {parser.get_format_instructions()}
     """
     
     extracted = {}
     patient_info = {}
     
     try:
-        res = structured_llm.invoke(prompt)
+        response = llm.invoke(prompt)
+        res = parser.invoke(response)
         
         # Map back to internal keys
         mapping = {

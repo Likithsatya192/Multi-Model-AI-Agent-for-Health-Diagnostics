@@ -195,7 +195,13 @@ if uploaded:
             score = result.risk_assessment.get("score", 0)
             color = "green" if score < 4 else "orange" if score < 7 else "red"
             st.markdown(f"**Risk Score:** :{color}[{score}/10]")
-            st.markdown(f"*Rationale:* {result.risk_assessment.get('rationale')}")
+            rationale = result.risk_assessment.get('rationale', [])
+            st.markdown("**Rationale:**")
+            if isinstance(rationale, list):
+                for item in rationale:
+                    st.write(f"- {item}")
+            else:
+                st.write(rationale)
 
     with col2:
         st.subheader("Contextual Analysis")
