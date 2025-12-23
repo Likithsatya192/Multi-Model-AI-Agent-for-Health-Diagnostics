@@ -1,6 +1,6 @@
 # 🩸 AI-Powered CBC Analyzer
 
-A state-of-the-art Multi-Agent AI system designed to analyze Complete Blood Count (CBC) reports. This tool uses OCR and advanced Large Language Models (LLMs) to scan, extract, interpret, and explain blood test results, providing clinical-grade insights and personalized health recommendations.
+A state-of-the-art Multi-Agent AI system designed to analyze Complete Blood Count (CBC) reports. This tool uses OCR, advanced Large Language Models (LLMs), and **RAG (Retrieval-Augmented Generation)** to scan, extract, interpret, and explain blood test results, providing clinical-grade insights and personalized health recommendations.
 
 ---
 
@@ -10,6 +10,7 @@ This project bridges the gap between complex medical data and patient understand
 **Key Features:**
 *   **LLM Extraction**: Uses **Llama-3.3-70b** to read documents like a human doctor.
 *   **Multi-Model Intelligence**: Specialized agents for Pattern Recognition, Context Analysis, and Report Synthesis.
+*   **Context-Aware RAG Chatbot**: Allows users to chat with their report. Uniquely, the chatbot checks both the **vector database** (retrieved text chunks) AND the **full analysis state** (AI-synthesized patterns, risk assessment, and recommendations) to provide highly accurate answers.
 
 ---
 
@@ -28,7 +29,7 @@ The heart of the application is **`nodes/extract_parameters.py`**.
 
 ---
 
-## �️ Visual Intelligence: OCR Extraction
+## ️ Visual Intelligence: OCR Extraction
 Before the LLM can read, we must "see" the document. This happens in **`nodes/ingest_and_ocr.py`**.
 
 ### 1. Digital PDFs (The Fast Path)
@@ -62,7 +63,12 @@ graph TD
     Context --> Synthesis[Synthesis Engine]
     Synthesis --> Recs[Recommendations Engine]
     
-    Recs --> End[Final Report & UI Display]
+    Recs --> RAG_Index[RAG Indexing Node] 
+    RAG_Index --> End[Final Report & UI Display]
+
+    End --> Chat[User Chats with RAG]
+    Chat --> RAG_Retrieval[Retrieve & Answer]
+    RAG_Retrieval --> ChatResponse[AI Response]
 ```
 
 ### The Pipeline Steps:
@@ -72,6 +78,7 @@ graph TD
 4.  **Context Analysis**: AI considers age/gender (e.g., "13 Hb is normal for a man, but excellent for a pregnant woman").
 5.  **Synthesis**: Combines all logical findings into a coherent narrative.
 6.  **Recommendations**: Generates dietary and lifestyle tips.
+7.  **RAG Indexing**: Indexes the raw text into **Qdrant** (Vector DB) for the chatbot.
 
 ---
 
@@ -79,8 +86,9 @@ graph TD
 Here is how every file contributes to the project:
 
 ### 1. Root Directory
-*   **`app.py`**: **Main Application**. Runs the **LLM (AI)** pipeline. Contains the Streamlit UI code for the dashboard, file uploader, and visualization cards.
-*   **`requirements.txt`**: Dependency list (`streamlit`, `langchain`, `pydantic`, etc.).
+*   **`app.py`**: **Main Streamlit Application**. Runs the pipeline and RAG chat.
+*   **`api.py`**: **FastAPI Backend**. Serves the React frontend.
+*   **`requirements.txt`**: Dependency list.
 
 ### 2. `nodes/` (The Brain)
 *   **`ingest_and_ocr.py`**: Router for pulling text from PDFs or Images.
@@ -91,19 +99,19 @@ Here is how every file contributes to the project:
 *   **`model3_context.py`**: "Doctor AI" #2 - Adjusts for patient demographics.
 *   **`synthesis.py`**: "Writer AI" - Drafts the final report signature.
 *   **`recommendations.py`**: "Advisor AI" - Gives health tips.
+*   **`rag_node.py`**: **Chatbot Brain**. Handles indexing documents to Qdrant and retrieving answers using hybrid search (Vector + Full Analysis Context).
 
 ### 3. `graph/` (The Application Logic)
 *   **`graph_state.py`**: Defines the data object (`ReportState`) that is passed between nodes. It's like the "memory" of the pipeline.
-*   **`graph_builder.py`**: Connects the `nodes` together into the Flowchart/Graph shown above (for the LLM App).
+*   **`graph_builder.py`**: Connects the analysis nodes together.
+*   **`rag_graph_builder.py`**: Defines the separate graph for RAG indexing.
+*   **`rag_pipeline.py`**: Modular wrapper for executing the RAG chat loop.
 *   **`run_pipeline.py`**: The trigger function that starts the graph execution.
 
 ### 4. `utils/` (Helpers)
 *   **`llm_utils.py`**: Configures the connection to Groq API.
 *   **`ocr_utils.py`**: Image processing helper for Tesseract.
 *   **`reference_ranges.py`**: Reads the medical database.
-
-### 5. `configs/`
-*   **`reference_ranges.json`**: The database of normal blood values (Men vs Women).
 
 ---
 
@@ -118,34 +126,40 @@ The project now features a modern, high-performance web interface built with:
 - **Scroll-aware Header**: Fluid navigation.
 - **Detailed Reports**: Beautifully styled Markdown rendering for Synthesis and Risk.
 - **History Management**: Re-analyze previous reports instantly.
+- **RAG Chat**: Ask questions directly to your report with full context awareness.
 
 ---
 
 ## 🚀 Quick Start Guide
 
-Follow these steps to set up the project locally.
+This project is managed using **uv** for fast and reliable Python environment management.
 
 ### Prerequisites
-*   **Python 3.10+** (Anaconda recommended)
+*   **uv** (Modern Python package manager) -> `pip install uv`
 *   **Node.js 18+** (For the frontend)
 *   **Tesseract OCR** (Required for image processing)
-    *   *Windows*: Download installer from [UB-Mannheim/tesseract](https://github.com/UB-Mannheim/tesseract/wiki)
-    *   *Mac*: `brew install tesseract`
 
 ### 1. Backend Setup (Python)
 
-**Using Anaconda (Recommended):**
 ```bash
-# 1. Create a new environment
-conda create -n health_ai python=3.10
-conda activate health_ai
+# 1. Initialize project and create virtual environment using uv
+uv init
+uv venv
 
-# 2. Install dependencies
-pip install -r requirements.txt
+# 2. Activate the environment
+# On Windows:
+.venv\Scripts\activate
+# On Mac/Linux:
+source .venv/bin/activate
 
-# 3. Setup Environment Variables
+# 3. Install dependencies
+uv pip install -r requirements.txt
+
+# 4. Setup Environment Variables
 # Create a .env file in the root directory and add:
 # GROQ_API_KEY=your_key_here
+# QDRANT_URL=your_qdrant_cloud_url (Optional, defaults to local disk)
+# QDRANT_API_KEY=your_qdrant_key (Optional)
 ```
 
 **Running the Backend API:**
@@ -178,6 +192,7 @@ npm install
 # VITE_FIREBASE_STORAGE_BUCKET=your_bucket.appspot.com
 # VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 # VITE_FIREBASE_APP_ID=your_app_id
+# VITE_API_URL=http://localhost:8000
 
 # 3. Start the Development Server
 npm run dev
@@ -189,4 +204,3 @@ Visit `http://localhost:5173` to launch the application.
 
 **Developed by J. Likith Sagar & Team**
 *AI Automation Project*
-
