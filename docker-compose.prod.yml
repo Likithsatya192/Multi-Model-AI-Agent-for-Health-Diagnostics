@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  backend:
+    image: ${DOCKER_USERNAME}/health-ai-backend:latest
+    container_name: health_ai_backend
+    ports:
+      - "8000:8000"
+    environment:
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - VITE_FIREBASE_API_KEY=${VITE_FIREBASE_API_KEY}
+    volumes:
+      - ./brain_storage:/app/brain_storage
+    restart: always
+
+  frontend:
+    image: ${DOCKER_USERNAME}/health-ai-frontend:latest
+    container_name: health_ai_frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: always
