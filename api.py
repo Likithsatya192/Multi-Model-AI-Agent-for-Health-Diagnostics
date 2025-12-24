@@ -85,4 +85,3 @@ def chat_with_report(request: ChatRequest):
 @app.get("/")
 def health_check():
     return {"status": "ok", "message": "Health AI API is running"}
-
