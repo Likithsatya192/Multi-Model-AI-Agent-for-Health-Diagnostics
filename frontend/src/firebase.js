@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 
 // Your web app's Firebase configuration
 // For this to work, you need to set VITE_FIREBASE_API_KEY in your frontend/.env file
@@ -7,6 +7,7 @@ const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
 
 let app;
 let auth;
+let googleProvider;
 
 if (!apiKey || apiKey.includes("YourKeyHere")) {
   console.error("Firebase API Key is missing! Check your .env file.");
@@ -23,6 +24,7 @@ if (!apiKey || apiKey.includes("YourKeyHere")) {
   // Initialize Firebase
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
+  googleProvider = new GoogleAuthProvider();
 }
 
-export { auth };
+export { auth, googleProvider, signInWithPopup };
