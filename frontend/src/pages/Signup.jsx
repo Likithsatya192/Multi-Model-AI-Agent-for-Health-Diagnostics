@@ -41,7 +41,7 @@ export default function Signup() {
             navigate('/');
         } catch (err) {
             console.error(err);
-            setError('Failed to sign up with Google.');
+            setError(`Failed to sign up with Google: ${err.message}`);
         } finally {
             setLoading(false);
         }

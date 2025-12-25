@@ -35,7 +35,7 @@ export default function Login() {
             navigate('/');
         } catch (err) {
             console.error(err);
-            setError('Failed to sign in with Google.');
+            setError(`Failed to sign in with Google: ${err.message}`);
         } finally {
             setLoading(false);
         }
