@@ -323,4 +323,4 @@ if uploaded:
                     # Add assistant response to chat history
                     st.session_state.messages.append({"role": "assistant", "content": answer})
                 except Exception as e:
-                    st.error(f"Error generating answer: {e}")
+                    st.error(f"Error generating answer: {e}") 
