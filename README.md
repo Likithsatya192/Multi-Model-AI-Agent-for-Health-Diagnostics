@@ -25,7 +25,7 @@ An AI-powered Complete Blood Count (CBC) report analyzer with RAG-based Q&A. Upl
 | **Metadata DB** | Supabase (PostgreSQL) |
 | **Backend** | FastAPI + Uvicorn |
 | **Pipeline** | LangGraph (8-node DAG) |
-| **LLM** | Groq API (LLaMA 3 models) |
+| **LLM** | Groq API (`openai/gpt-oss-120b` for analysis, `llama-3.3-70b-versatile` for RAG) |
 | **Embeddings** | HuggingFace `sentence-transformers/all-MiniLM-L6-v2` |
 | **Vector Store** | FAISS (in-process, persisted to Docker volume) |
 | **OCR** | Tesseract + PyMuPDF (fitz) |
@@ -41,29 +41,34 @@ An AI-powered Complete Blood Count (CBC) report analyzer with RAG-based Q&A. Upl
 
 ```
 Browser → Nginx → Next.js (frontend:3000)
-                    ├── POST /api/upload  →  Clerk auth check  →  FastAPI /analyze  →  LangGraph pipeline
-                    └── POST /api/query   →  Clerk auth check  →  FastAPI /chat     →  FAISS + Groq LLM
+                    ├── POST /api/upload  →  Clerk auth check  →  FastAPI /analyze  →  LangGraph pipeline → RAG indexing (FAISS)
+                    ├── GET  /api/reports →  Clerk auth check  →  Supabase query (user's past reports)
+                    ├── GET  /api/reports/[id] → Clerk auth check → Supabase query (specific report details)
+                    └── POST /api/query   →  Clerk auth check  →  FastAPI /chat     →  RAG retrieval + Groq LLM → answer
 ```
 
-### LangGraph Pipeline
+### LangGraph Pipeline (8-node DAG)
 
 ```mermaid
 flowchart TD
     A([Start: File Upload]) --> B[ingest_and_ocr\nPyMuPDF + Tesseract]
-    B --> C[extract_parameters\nGroq LLM — CBC values]
+    B --> C[extract_parameters\nGroq openai/gpt-oss-120b — CBC values]
     C --> D[validate_standardize\nreference_ranges.json]
     D --> E[model1_interpretation\nLOW / NORMAL / HIGH per param]
     E --> F[model2_patterns\nPattern recognition + Risk score]
     F --> G[model3_context\nAge & gender context]
     G --> H[synthesis\nComprehensive report generation]
     H --> I[recommendations\nClinical recommendations]
-    I --> J[rag_node\nChunk → Embed → FAISS index]
-    J --> K([End: ReportState returned to API])
+    I --> K([End: ReportState returned to API])
+    
+    K --> J[rag_indexing_node\nPost-pipeline: Chunk → Embed → FAISS index]
 
     style A fill:#4ade80,color:#000
     style K fill:#4ade80,color:#000
-    style J fill:#818cf8,color:#fff
+    style J fill:#fbbf24,color:#000
 ```
+
+*Note: The `rag_indexing_node` is invoked after the main 8-node pipeline completes, not as part of the LangGraph DAG.*
 
 ### RAG Chat Flow
 
@@ -74,7 +79,7 @@ flowchart LR
     F --> R[rag_retrieve_and_answer]
     R --> V[(FAISS Index\nfaiss_index/namespace/)]
     V --> E[Top-k similar chunks]
-    E --> L[Groq LLM\nwith context + history]
+    E --> L["Groq LLM\n(llama-3.3-70b-versatile)\nwith context + history"]
     L --> A([Answer returned to user])
 ```
 
@@ -90,12 +95,13 @@ flowchart TD
         MW[Clerk Middleware]
         API_U["Next.js /api/upload"]
         API_Q["Next.js /api/query"]
+        API_R["Next.js /api/reports"]
     end
 
     subgraph Backend["Backend Container (FastAPI:8000)"]
         AZ["FastAPI /analyze"]
         CH["FastAPI /chat"]
-        subgraph Pipeline["LangGraph Pipeline"]
+        subgraph Pipeline["LangGraph Pipeline (8 nodes)"]
             N1[ingest_and_ocr]
             N2[extract_parameters]
             N3[validate_standardize]
@@ -104,8 +110,8 @@ flowchart TD
             N6[model3_context]
             N7[synthesis]
             N8[recommendations]
-            N9[rag_node]
         end
+        RAG_IDX["RAG Indexing Graph\n(post-pipeline)"]
         RAG[rag_retrieve_and_answer]
     end
 
@@ -115,19 +121,22 @@ flowchart TD
     end
 
     subgraph External["External Services"]
-        GROQ[Groq API\nLLaMA 3]
+        GROQ["Groq API\n(openai/gpt-oss-120b, llama-3.3-70b-versatile)"]
         CLERK[Clerk Auth]
         HF[HuggingFace\nEmbeddings]
     end
 
-    UI --> MW --> API_U & API_Q
-    API_U --> AZ --> N1 --> N2 --> N3 --> N4 --> N5 --> N6 --> N7 --> N8 --> N9
-    N9 --> FAISS
+    UI --> MW --> API_U & API_Q & API_R
+    API_U --> AZ --> N1 --> N2 --> N3 --> N4 --> N5 --> N6 --> N7 --> N8
+    N8 --> RAG_IDX
+    N2 & N4 & N5 & N6 & N7 & N8 --> GROQ
+    RAG_IDX --> FAISS
+    RAG_IDX --> HF
+    API_U --> SB
     API_Q --> CH --> RAG --> FAISS
     RAG --> GROQ
-    N2 & N4 & N5 & N6 & N7 & N8 --> GROQ
-    N9 --> HF
     RAG --> HF
+    API_R --> SB
     UI --> CLERK
     UI --> SB
 ```
@@ -179,8 +188,10 @@ health_ai_project/
     │   ├── sign-in/              # Clerk sign-in route
     │   ├── sign-up/              # Clerk sign-up route
     │   └── api/
-    │       ├── upload/route.ts   # Authenticated proxy → /analyze
-    │       └── query/route.ts    # Authenticated proxy → /chat
+    │       ├── upload/route.ts   # POST — Authenticated proxy → /analyze
+    │       ├── query/route.ts    # POST — Authenticated proxy → /chat
+    │       ├── reports/route.ts  # GET — Fetch user's report history from Supabase
+    │       └── reports/[id]/route.ts # GET/DELETE — Fetch or delete specific report
     ├── components/
     │   ├── Dashboard.tsx
     │   └── ChatComponent.tsx
@@ -320,9 +331,10 @@ CI/CD is handled by `.github/workflows/deploy.yml`. On every push to `main`:
 
 ## Notes
 
-- Chat history is in-memory only; restarting the backend clears all sessions.
-- FAISS indexes are persisted to `faiss_index/<namespace>/` inside the backend container via the `faiss_data` Docker volume.
-- There is no backend test suite; test manually via Swagger UI at `/docs` or using the Streamlit UI (`streamlit run app.py`).
+- **Report Data** — Analysis results and metadata are persisted in Supabase (`reports` table). User can retrieve past reports across backend restarts.
+- **Chat History** — Session-based chat history is in-memory only; restarting the backend clears all active chat sessions. Users must re-upload or re-open a report to resume analysis.
+- **FAISS Indexes** — Vector indexes are persisted to `faiss_index/<namespace>/` inside the backend container via the `faiss_data` Docker volume.
+- **Testing** — No backend test suite exists; test manually via Swagger UI at `/docs` or using the Streamlit UI (`streamlit run app.py`).
 
 ---
 
