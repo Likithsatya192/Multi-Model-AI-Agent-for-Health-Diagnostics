@@ -216,13 +216,13 @@ cd health_ai_project
 GROQ_API_KEY=your_groq_api_key
 ```
 
-**`frontend/.env.local`** (Next.js — copy from `.env.local.example`):
+**`frontend/.env.local`** (Next.js):
 ```env
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_...
 CLERK_SECRET_KEY=sk_...
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
-FASTAPI_URL=http://localhost:8000
+FASTAPI_URL=http://localhost:8000   # use http://backend:8000 inside Docker
 ```
 
 ### 3. Run with Docker (recommended)
@@ -255,25 +255,40 @@ npm run dev
 
 ## Supabase Setup
 
-Run the following SQL in your Supabase SQL editor to create the required tables:
+### 1. Create the `reports` table
+
+Run the following SQL in your Supabase SQL editor:
 
 ```sql
--- Users table
-create table users (
-  id uuid primary key default gen_random_uuid(),
-  clerk_id text unique not null,
-  email text,
-  created_at timestamptz default now()
+create table reports (
+  id                   uuid primary key default gen_random_uuid(),
+  user_id              text not null,          -- Clerk user ID
+  filename             text not null,
+  title                text,
+  rag_collection_name  text,
+  risk_score           integer,
+  analysis_data        jsonb not null,          -- full FastAPI response
+  created_at           timestamptz default now()
 );
 
--- Documents table
-create table documents (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid references users(id),
-  filename text,
-  rag_collection_name text,
-  uploaded_at timestamptz default now()
-);
+-- Indexes for fast per-user queries
+create index reports_user_id_idx   on reports(user_id);
+create index reports_created_at_idx on reports(created_at desc);
+```
+
+### 2. Disable RLS (or configure policies)
+
+Since the app filters by `user_id` server-side via Clerk, the simplest setup is to disable RLS:
+
+```sql
+alter table reports disable row level security;
+```
+
+Or, if you prefer RLS with the Supabase anon key, add a policy that always returns false for direct client access (all queries go through Next.js API routes):
+
+```sql
+alter table reports enable row level security;
+create policy "No direct client access" on reports for all using (false);
 ```
 
 ---
