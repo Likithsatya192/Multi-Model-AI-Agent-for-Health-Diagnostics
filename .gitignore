@@ -204,7 +204,7 @@ cython_debug/
 # Marimo
 marimo/_static/
 
-# Frontend (React/Vite)
+# Frontend (Next.js)
 node_modules/
 dist/
 dist-ssr/
@@ -220,10 +220,15 @@ frontend/firebase_key.json
 .env.test.local
 .env.production.local
 
+# Next.js build output
+frontend/.next/
+frontend/out/
+.next/
 
 # Project Specific
 qdrant_data/
 qdrant_storage/
+faiss_index/
 logs/
 *.tmp
 test_import.py

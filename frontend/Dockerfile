@@ -1,49 +1,24 @@
-# Stage 1: Build React App
-FROM node:18-alpine as build
-
+FROM node:20-alpine AS deps
 WORKDIR /app
+COPY package.json package-lock.json* ./
+RUN npm ci
 
-# Install dependencies
-COPY package*.json ./
-RUN npm install
-
-# Copy source and build
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-
-# Build for production with relative API path
-# We set VITE_API_URL to /api so it uses the local proxy
-ARG VITE_API_URL=/api
-ENV VITE_API_URL=${VITE_API_URL}
-
-ARG VITE_FIREBASE_API_KEY
-ENV VITE_FIREBASE_API_KEY=${VITE_FIREBASE_API_KEY}
-
-ARG VITE_FIREBASE_AUTH_DOMAIN
-ENV VITE_FIREBASE_AUTH_DOMAIN=${VITE_FIREBASE_AUTH_DOMAIN}
-
-ARG VITE_FIREBASE_PROJECT_ID
-ENV VITE_FIREBASE_PROJECT_ID=${VITE_FIREBASE_PROJECT_ID}
-
-ARG VITE_FIREBASE_STORAGE_BUCKET
-ENV VITE_FIREBASE_STORAGE_BUCKET=${VITE_FIREBASE_STORAGE_BUCKET}
-
-ARG VITE_FIREBASE_MESSAGING_SENDER_ID
-ENV VITE_FIREBASE_MESSAGING_SENDER_ID=${VITE_FIREBASE_MESSAGING_SENDER_ID}
-
-ARG VITE_FIREBASE_APP_ID
-ENV VITE_FIREBASE_APP_ID=${VITE_FIREBASE_APP_ID}
-
 RUN npm run build
 
-# Stage 2: Serve with Nginx
-FROM nginx:alpine
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
 
-# Copy built assets
-COPY --from=build /app/dist /usr/share/nginx/html
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
 
-# Copy custom nginx config
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 
-EXPOSE 80
-
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["node", "server.js"]

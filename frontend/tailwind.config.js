@@ -1,19 +1,20 @@
 /** @type {import('tailwindcss').Config} */
 export default {
     content: [
-        "./index.html",
-        "./src/**/*.{js,ts,jsx,tsx}",
+        "./app/**/*.{js,ts,jsx,tsx,mdx}",
+        "./components/**/*.{js,ts,jsx,tsx,mdx}",
+        "./lib/**/*.{js,ts,jsx,tsx,mdx}",
     ],
     theme: {
         extend: {
             colors: {
-                background: "#09090b", // Zinc 950
-                surface: "#18181b",    // Zinc 900
+                background: "#09090b",       // Zinc 950
+                surface: "#18181b",          // Zinc 900
                 surfaceHighlight: "#27272a", // Zinc 800
-                primary: "#0EA5E9",    // Sky 500
-                primaryDark: "#0284C7", // Sky 600
-                secondary: "#A1A1AA",  // Zinc 400
-                accent: "#F472B6",     // Pink 400 (for subtle gradients)
+                primary: "#0EA5E9",          // Sky 500
+                primaryDark: "#0284C7",      // Sky 600
+                secondary: "#A1A1AA",        // Zinc 400
+                accent: "#F472B6",           // Pink 400
                 success: "#22c55e",
                 error: "#ef4444",
                 warning: "#f59e0b",

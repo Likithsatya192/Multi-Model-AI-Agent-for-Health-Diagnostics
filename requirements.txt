@@ -7,7 +7,7 @@ langchain
 langchain_groq
 langgraph
 python-dotenv
-numpy
+numpy<2
 pandas
 matplotlib
 seaborn
@@ -16,9 +16,8 @@ supabase
 fastapi
 uvicorn
 python-multipart
-pinecone-client
+faiss-cpu==1.8.0
 sentence-transformers
 langchain-huggingface
-langchain-pinecone
 langchain-text-splitters
 langchain-community

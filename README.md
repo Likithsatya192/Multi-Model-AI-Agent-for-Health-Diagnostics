@@ -1,97 +1,318 @@
-# Health AI Project
+# Health AI — CBC Report Analyzer
 
-AI-powered medical analysis tool that processes medical documents (PDFs, Images, etc.) to provide insights, pattern recognition, Contextual analysis, Clinical synthesis and recommendations using advanced RAG (Retrieval-Augmented Generation) and LLMs.
+An AI-powered Complete Blood Count (CBC) report analyzer with RAG-based Q&A. Upload a blood report (PDF or image), get a full multi-model analysis, then ask follow-up questions via an intelligent chat interface.
 
-## 🚀 Features
+---
 
--   **Intelligent Document Analysis**: Upload medical reports (PDFs, Images, etc.) for automated analysis.
--   **RAG Chatbot**: Ask questions about your uploaded documents and get context-aware answers.
--   **Authentication**: Secure Google Sign-In and Email/Password authentication via Firebase.
--   **Modern UI**: Responsive, glassmorphism-styled frontend built with React and Tailwind CSS.
--   **Scalable Backend**: FastAPI-based backend with Pinecone vector database for efficient retrieval.
--   **Production Ready**: Dockerized application with CI/CD pipeline for AWS deployment.
+## Features
 
-## 🛠️ Tech Stack
+- **Automated CBC Analysis** — Upload a PDF or image; the 8-node LangGraph pipeline extracts, validates, interprets, and synthesizes the report.
+- **Multi-Model Insights** — Per-parameter classification (LOW/NORMAL/HIGH), pattern recognition, risk scoring, contextual analysis (age/gender), and clinical recommendations.
+- **RAG Chatbot** — Ask natural-language questions about your report; answers are grounded in your specific results via FAISS vector search.
+- **Secure Authentication** — Clerk-based auth (Google + email/password) protecting all routes.
+- **User History** — Report metadata stored in Supabase (PostgreSQL).
+- **Production Ready** — Fully Dockerized with Nginx, CI/CD to AWS EC2 via GitHub Actions.
 
--   **Frontend**: React, Vite, Tailwind CSS, Framer Motion, Firebase Auth
--   **Backend**: FastAPI, LangChain, Langgraph, Groq LLM
--   **Database**: Pinecone (Vector DB)
--   **Infrastructure**: Docker, Docker Compose, Nginx
--   **CI/CD**: GitHub Actions, AWS EC2
+---
 
-## ⚙️ Local Development Setup
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| **Frontend** | Next.js 14 (App Router) + TypeScript |
+| **UI Styling** | Tailwind CSS + Framer Motion |
+| **Authentication** | Clerk (`@clerk/nextjs`) |
+| **Metadata DB** | Supabase (PostgreSQL) |
+| **Backend** | FastAPI + Uvicorn |
+| **Pipeline** | LangGraph (8-node DAG) |
+| **LLM** | Groq API (LLaMA 3 models) |
+| **Embeddings** | HuggingFace `sentence-transformers/all-MiniLM-L6-v2` |
+| **Vector Store** | FAISS (in-process, persisted to Docker volume) |
+| **OCR** | Tesseract + PyMuPDF (fitz) |
+| **Containerization** | Docker + Docker Compose |
+| **Reverse Proxy** | Nginx |
+| **CI/CD** | GitHub Actions → Docker Hub → AWS EC2 |
+
+---
+
+## Architecture
+
+### Request Flow
+
+```
+Browser → Nginx → Next.js (frontend:3000)
+                    ├── POST /api/upload  →  Clerk auth check  →  FastAPI /analyze  →  LangGraph pipeline
+                    └── POST /api/query   →  Clerk auth check  →  FastAPI /chat     →  FAISS + Groq LLM
+```
+
+### LangGraph Pipeline
+
+```mermaid
+flowchart TD
+    A([Start: File Upload]) --> B[ingest_and_ocr\nPyMuPDF + Tesseract]
+    B --> C[extract_parameters\nGroq LLM — CBC values]
+    C --> D[validate_standardize\nreference_ranges.json]
+    D --> E[model1_interpretation\nLOW / NORMAL / HIGH per param]
+    E --> F[model2_patterns\nPattern recognition + Risk score]
+    F --> G[model3_context\nAge & gender context]
+    G --> H[synthesis\nComprehensive report generation]
+    H --> I[recommendations\nClinical recommendations]
+    I --> J[rag_node\nChunk → Embed → FAISS index]
+    J --> K([End: ReportState returned to API])
+
+    style A fill:#4ade80,color:#000
+    style K fill:#4ade80,color:#000
+    style J fill:#818cf8,color:#fff
+```
+
+### RAG Chat Flow
+
+```mermaid
+flowchart LR
+    U([User Question]) --> Q[Next.js /api/query]
+    Q --> F[FastAPI /chat]
+    F --> R[rag_retrieve_and_answer]
+    R --> V[(FAISS Index\nfaiss_index/namespace/)]
+    V --> E[Top-k similar chunks]
+    E --> L[Groq LLM\nwith context + history]
+    L --> A([Answer returned to user])
+```
+
+### Full System Architecture
+
+```mermaid
+flowchart TD
+    subgraph Client["Browser"]
+        UI[Next.js UI]
+    end
+
+    subgraph Frontend["Frontend Container (Next.js:3000)"]
+        MW[Clerk Middleware]
+        API_U[/api/upload]
+        API_Q[/api/query]
+    end
+
+    subgraph Backend["Backend Container (FastAPI:8000)"]
+        AZ[/analyze endpoint]
+        CH[/chat endpoint]
+        subgraph Pipeline["LangGraph Pipeline"]
+            N1[ingest_and_ocr]
+            N2[extract_parameters]
+            N3[validate_standardize]
+            N4[model1_interpretation]
+            N5[model2_patterns]
+            N6[model3_context]
+            N7[synthesis]
+            N8[recommendations]
+            N9[rag_node]
+        end
+        RAG[rag_retrieve_and_answer]
+    end
+
+    subgraph Storage["Persistent Storage"]
+        FAISS[(FAISS Index\nDocker Volume)]
+        SB[(Supabase\nPostgreSQL)]
+    end
+
+    subgraph External["External Services"]
+        GROQ[Groq API\nLLaMA 3]
+        CLERK[Clerk Auth]
+        HF[HuggingFace\nEmbeddings]
+    end
+
+    UI --> MW --> API_U & API_Q
+    API_U --> AZ --> N1 --> N2 --> N3 --> N4 --> N5 --> N6 --> N7 --> N8 --> N9
+    N9 --> FAISS
+    API_Q --> CH --> RAG --> FAISS
+    RAG --> GROQ
+    N2 & N4 & N5 & N6 & N7 & N8 --> GROQ
+    N9 --> HF
+    RAG --> HF
+    UI --> CLERK
+    UI --> SB
+```
+
+---
+
+## Project Structure
+
+```
+health_ai_project/
+├── api.py                        # FastAPI app (/analyze, /chat)
+├── app.py                        # Streamlit alternative UI
+├── requirements.txt              # Python dependencies
+├── Dockerfile                    # Backend container
+├── docker-compose.yml            # Dev stack
+├── docker-compose.prod.yml       # Production stack
+│
+├── graph/
+│   ├── graph_builder.py          # LangGraph 8-node DAG
+│   ├── graph_state.py            # ReportState Pydantic model
+│   ├── run_pipeline.py           # Pipeline entry point
+│   ├── rag_graph_builder.py      # RAG indexing sub-graph
+│   └── rag_pipeline.py           # RAG pipeline wrapper (Streamlit)
+│
+├── nodes/
+│   ├── ingest_and_ocr.py
+│   ├── extract_parameters.py
+│   ├── validate_standardize.py
+│   ├── model1_interpretation.py
+│   ├── model2_patterns.py
+│   ├── model3_context.py
+│   ├── synthesis.py
+│   ├── recommendations.py
+│   └── rag_node.py               # FAISS indexing + RAG query
+│
+├── utils/
+│   ├── llm_utils.py              # Groq LLM wrapper
+│   ├── ocr_utils.py
+│   └── reference_ranges.py
+│
+├── configs/
+│   └── reference_ranges.json     # CBC normal ranges by gender/age
+│
+└── frontend/
+    ├── app/
+    │   ├── layout.tsx            # Root layout (Clerk provider)
+    │   ├── page.tsx              # Home page
+    │   ├── dashboard/page.tsx    # Protected dashboard
+    │   ├── sign-in/              # Clerk sign-in route
+    │   ├── sign-up/              # Clerk sign-up route
+    │   └── api/
+    │       ├── upload/route.ts   # Authenticated proxy → /analyze
+    │       └── query/route.ts    # Authenticated proxy → /chat
+    ├── components/
+    │   ├── Dashboard.tsx
+    │   └── ChatComponent.tsx
+    ├── lib/
+    │   └── supabase.ts
+    ├── middleware.ts              # Clerk auth middleware
+    ├── Dockerfile
+    └── nginx.conf
+```
+
+---
+
+## Local Development Setup
 
 ### Prerequisites
--   Node.js (v18+)
--   Python (v3.10+)
--   Docker & Docker Compose
 
-### 1. Clone the Repository
+- Node.js 18+
+- Python 3.10+
+- Docker & Docker Compose
+- Tesseract OCR installed locally (for non-Docker runs)
+
+### 1. Clone
+
 ```bash
 git clone <your-repo-url>
 cd health_ai_project
 ```
 
-### 2. Configure Environment Variables
-Create a `.env` file in the `frontend` directory:
-```bash
-# frontend/.env
-VITE_FIREBASE_API_KEY=your_api_key
-VITE_FIREBASE_AUTH_DOMAIN=your_project_id.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=your_project_id
-VITE_FIREBASE_STORAGE_BUCKET=your_project_id.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
-VITE_FIREBASE_APP_ID=your_app_id
-```
+### 2. Environment Variables
 
-Create a `.env` file in the root directory for the backend (if running locally without Docker):
-```bash
-# .env
+**Root `.env`** (backend):
+```env
 GROQ_API_KEY=your_groq_api_key
-PINECONE_API_KEY=your_pinecone_api_key
-PINECONE_INDEX_NAME=your_pinecone_index_name
 ```
 
-### 3. Run with Docker Compose
-The easiest way to run the full stack:
+**`frontend/.env.local`** (Next.js — copy from `.env.local.example`):
+```env
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_...
+CLERK_SECRET_KEY=sk_...
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+FASTAPI_URL=http://localhost:8000
+```
+
+### 3. Run with Docker (recommended)
+
 ```bash
+# Development — builds from source
 docker-compose up --build
 ```
-Access the application at `http://localhost`.
 
-## 📦 AWS Deployment
+| Service | URL |
+|---|---|
+| Frontend | http://localhost:3000 |
+| Backend API | http://localhost:8000 |
+| Swagger Docs | http://localhost:8000/docs |
 
-This project is configured for automated deployment to AWS EC2 using GitHub Actions.
+### 4. Run without Docker
 
-### 1. GitHub Secrets
-You must configure the following Secrets in your GitHub Repository settings (**Settings > Secrets and variables > Actions**):
+```bash
+# Backend
+pip install -r requirements.txt
+uvicorn api:app --reload
 
-| Secret Name | Description |
-| :--- | :--- |
+# Frontend (separate terminal)
+cd frontend
+npm install
+npm run dev
+```
+
+---
+
+## Supabase Setup
+
+Run the following SQL in your Supabase SQL editor to create the required tables:
+
+```sql
+-- Users table
+create table users (
+  id uuid primary key default gen_random_uuid(),
+  clerk_id text unique not null,
+  email text,
+  created_at timestamptz default now()
+);
+
+-- Documents table
+create table documents (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references users(id),
+  filename text,
+  rag_collection_name text,
+  uploaded_at timestamptz default now()
+);
+```
+
+---
+
+## Deployment (AWS EC2)
+
+CI/CD is handled by `.github/workflows/deploy.yml`. On every push to `main`:
+
+1. Builds backend + frontend Docker images.
+2. Pushes to Docker Hub.
+3. SSH into EC2 and runs `docker-compose -f docker-compose.prod.yml up -d`.
+
+### Required GitHub Secrets
+
+| Secret | Description |
+|---|---|
 | `DOCKER_USERNAME` | Docker Hub username |
-| `DOCKER_PASSWORD` | Docker Hub access token/password |
-| `EC2_HOST` | Public IP or DNS of your EC2 instance |
-| `EC2_USER` | EC2 username (e.g., `ubuntu` or `ec2-user`) |
-| `EC2_SSH_KEY` | Private SSH key for EC2 access |
-| `GROQ_API_KEY` | API Key for Groq LLM |
-| `VITE_FIREBASE_API_KEY` | Firebase API Key |
-| `VITE_FIREBASE_AUTH_DOMAIN` | Firebase Auth Domain |
-| `VITE_FIREBASE_PROJECT_ID` | Firebase Project ID |
-| `VITE_FIREBASE_STORAGE_BUCKET` | Firebase Storage Bucket |
-| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Firebase Messaging Sender ID |
-| `VITE_FIREBASE_APP_ID` | Firebase App ID |
-| `PINECONE_API_KEY` | API Key for Pinecone Vector DB |
-| `PINECONE_INDEX_NAME` | Name of the Pinecone Index |
+| `DOCKER_PASSWORD` | Docker Hub access token |
+| `EC2_HOST` | EC2 public IP or DNS |
+| `EC2_USERNAME` | EC2 SSH user (e.g. `ubuntu`) |
+| `EC2_KEY` | Private SSH key for EC2 |
+| `GROQ_API_KEY` | Groq API key |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk publishable key |
+| `CLERK_SECRET_KEY` | Clerk secret key |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
 
-### 2. Deployment
-Pushing to the `main` branch will automatically trigger the deployment workflow:
-1.  Builds backend and frontend Docker images.
-2.  Publishes images to Docker Hub.
-3.  SSH into EC2, pulls new images, and restarts containers.
+---
 
-## 👨‍💻 Created By
+## Notes
+
+- Chat history is in-memory only; restarting the backend clears all sessions.
+- FAISS indexes are persisted to `faiss_index/<namespace>/` inside the backend container via the `faiss_data` Docker volume.
+- There is no backend test suite; test manually via Swagger UI at `/docs` or using the Streamlit UI (`streamlit run app.py`).
+
+---
+
+## Author
 
 **Likith Sagar**
 
--   **GitHub**: [Likithsatya192](https://github.com/Likithsatya192)
--   **Project**: Health AI - AI-Powered Medical Analysis Tool
+- GitHub: [Likithsatya192](https://github.com/Likithsatya192)

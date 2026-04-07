@@ -1,15 +1,13 @@
 from typing import List, Any, Dict, Tuple
 from graph.graph_state import ReportState
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_pinecone import PineconeVectorStore
+from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 import uuid
 import os
 from dotenv import load_dotenv
 
-# Ensure env vars are loaded
 load_dotenv()
 
 # Chat history storage (in-memory)
@@ -21,8 +19,12 @@ EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 # In-memory storage for analysis reports
 report_state_store: Dict[str, Any] = {}
 
-# Pinecone Configuration
-PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "health-ai")
+# FAISS index directory
+FAISS_INDEX_DIR = os.getenv("FAISS_INDEX_DIR", "faiss_index")
+
+# In-memory FAISS store keyed by namespace (session/report id)
+_faiss_stores: Dict[str, FAISS] = {}
+
 
 def store_report_state(session_id: str, state: Any):
     """Stores the analysis report state for a session."""
@@ -34,14 +36,14 @@ def get_embeddings():
 
 def rag_indexing_node(state: ReportState) -> Dict[str, Any]:
     """
-    Indexes the document content into Pinecone using Namespaces.
-    Each report gets a unique ID which serves as the namespace in the single 'health-ai' index.
+    Indexes the document content into a FAISS vector store.
+    Each report gets a unique namespace stored in memory and optionally persisted to disk.
     """
-    print("--- RAG INDEXING NODE (PINECONE) ---")
-    
+    print("--- RAG INDEXING NODE (FAISS) ---")
+
     raw_text = state.raw_text
     file_path = state.raw_file_path
-    
+
     if not raw_text:
         print("No text to index.")
         return {"errors": ["No text available for RAG indexing"]}
@@ -49,84 +51,87 @@ def rag_indexing_node(state: ReportState) -> Dict[str, Any]:
     try:
         # Generate a unique namespace for this session/report
         namespace = f"report_{uuid.uuid4().hex}"
-        
+
         # Split text
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000,
             chunk_overlap=200,
             add_start_index=True,
         )
-        
-        # Metadata
+
         metadata = {"source": file_path if file_path else "unknown"}
-        
         docs = [Document(page_content=text, metadata=metadata) for text in text_splitter.split_text(raw_text)]
-        
+
         if not docs:
             print("No documents created from text splitter.")
             return {"errors": ["Text splitting failed"]}
 
         embeddings = get_embeddings()
-        
-        print(f"Indexing {len(docs)} chunks to Pinecone Index '{PINECONE_INDEX_NAME}' in Namespace '{namespace}'...")
-        
-        # Create VectorStore from documents
-        # This assumes the index 'health-ai' ALREADY EXISTS.
-        PineconeVectorStore.from_documents(
-            documents=docs,
-            embedding=embeddings,
-            index_name=PINECONE_INDEX_NAME,
-            namespace=namespace
-        )
-        
-        print(f"Successfully indexed into namespace: {namespace}")
-        
-        # Return the namespace as 'rag_collection_name' to maintain compatibility with existing API/Frontend logic
+
+        print(f"Indexing {len(docs)} chunks into FAISS namespace '{namespace}'...")
+
+        vectorstore = FAISS.from_documents(docs, embeddings)
+
+        # Persist to disk so the index survives across requests
+        index_path = os.path.join(FAISS_INDEX_DIR, namespace)
+        os.makedirs(index_path, exist_ok=True)
+        vectorstore.save_local(index_path)
+
+        # Also keep in memory for fast access in the same process
+        _faiss_stores[namespace] = vectorstore
+
+        print(f"Successfully indexed into FAISS namespace: {namespace}")
+
         return {"rag_collection_name": namespace}
-        
+
     except Exception as e:
         print(f"Error in RAG node: {e}")
         return {"errors": [f"RAG Indexing Error: {str(e)}"]}
 
+
 def rag_retrieve_and_answer(question: str, collection_name: str, session_id: str = None, report_context: Any = None) -> str:
     """
-    Retrieves context and generates an answer using an LLM with chat history.
-    collection_name here refers to the Pinecone Namespace.
+    Retrieves context from the FAISS index and generates an answer via Groq LLM.
+    collection_name is the FAISS namespace (subdirectory under FAISS_INDEX_DIR).
     """
     from langchain_groq import ChatGroq
     from langchain_core.prompts import PromptTemplate
     import json
-    
+
     if session_id is None:
         session_id = "default"
-    
-    # Initialize chat history
+
     if session_id not in chat_history_store:
         chat_history_store[session_id] = []
-    
+
     try:
         embeddings = get_embeddings()
-        
-        # Initialize VectorStore for retrieval
-        vector_store = PineconeVectorStore(
-            index_name=PINECONE_INDEX_NAME,
-            embedding=embeddings,
-            namespace=collection_name
-        )
-        
-        retriever = vector_store.as_retriever(search_kwargs={"k": 5})
-        
+
+        # Load from memory or disk
+        if collection_name in _faiss_stores:
+            vectorstore = _faiss_stores[collection_name]
+        else:
+            index_path = os.path.join(FAISS_INDEX_DIR, collection_name)
+            if not os.path.exists(index_path):
+                return "Error: The report index was not found. Please re-upload the report."
+            vectorstore = FAISS.load_local(
+                index_path,
+                embeddings,
+                allow_dangerous_deserialization=True,
+            )
+            _faiss_stores[collection_name] = vectorstore
+
+        retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
+
         llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
-        
-        # Retrieve relevant documents
-        # Note: If namespace doesn't exist, Pinecone returns empty list, not error.
+
         retrieved_docs = retriever.invoke(question)
-        
+
         if not retrieved_docs:
-             print("Warning: No documents retrieved. Namespace might be empty or invalid.")
-        
+            print("Warning: No documents retrieved from FAISS index.")
+
         context = "\n".join([doc.page_content for doc in retrieved_docs])
-        
+
         # Build chat history context
         history_context = ""
         if chat_history_store[session_id]:
@@ -134,7 +139,7 @@ def rag_retrieve_and_answer(question: str, collection_name: str, session_id: str
             for user_msg, assistant_msg in chat_history_store[session_id][-5:]:
                 history_context += f"User: {user_msg}\nAssistant: {assistant_msg}\n"
 
-        # Build Analysis Report Context
+        # Build analysis report context
         if report_context is None and session_id in report_state_store:
             report_context = report_state_store[session_id]
 
@@ -146,13 +151,12 @@ def rag_retrieve_and_answer(question: str, collection_name: str, session_id: str
                 ctx_data = report_context.dict()
             else:
                 ctx_data = report_context if isinstance(report_context, dict) else {}
-            
+
             if 'raw_text' in ctx_data and ctx_data['raw_text'] and len(ctx_data['raw_text']) > 5000:
-                 ctx_data['raw_text'] = ctx_data['raw_text'][:5000] + "... (truncated in context)"
+                ctx_data['raw_text'] = ctx_data['raw_text'][:5000] + "... (truncated in context)"
 
             report_context_str = json.dumps(ctx_data, indent=2, default=str)
-        
-        # Create prompt
+
         prompt = PromptTemplate(
             input_variables=["context", "question", "history", "report_context"],
             template="""You are a dedicated AI medical assistant analyzing a specific patient's uploaded blood report.
@@ -183,27 +187,27 @@ User Question: {question}
 
 Answer:"""
         )
-        
-        # Chain
+
         chain = prompt | llm
-        
+
         result = chain.invoke({
             "context": context,
             "question": question,
             "history": history_context,
             "report_context": report_context_str
         })
-        
+
         answer = result.content.strip() if hasattr(result, 'content') else str(result).strip()
-        
+
         chat_history_store[session_id].append((question, answer))
-        
+
         return answer
-        
+
     except Exception as e:
         import traceback
         traceback.print_exc()
         return f"Error responding to chat: {str(e)}"
+
 
 def get_chat_history(session_id: str = None) -> List[Tuple[str, str]]:
     if session_id is None:
