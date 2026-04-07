@@ -88,13 +88,13 @@ flowchart TD
 
     subgraph Frontend["Frontend Container (Next.js:3000)"]
         MW[Clerk Middleware]
-        API_U[/api/upload]
-        API_Q[/api/query]
+        API_U["Next.js /api/upload"]
+        API_Q["Next.js /api/query"]
     end
 
     subgraph Backend["Backend Container (FastAPI:8000)"]
-        AZ[/analyze endpoint]
-        CH[/chat endpoint]
+        AZ["FastAPI /analyze"]
+        CH["FastAPI /chat"]
         subgraph Pipeline["LangGraph Pipeline"]
             N1[ingest_and_ocr]
             N2[extract_parameters]
