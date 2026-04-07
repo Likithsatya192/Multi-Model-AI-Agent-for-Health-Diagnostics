@@ -234,3 +234,5 @@ logs/
 test_import.py
 .vscode/
 .idea/
+.claude
+CLAUDE.md
