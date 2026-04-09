@@ -19,8 +19,8 @@ An AI-powered Complete Blood Count (CBC) report analyzer with RAG-based Q&A. Upl
 
 | Layer | Technology |
 |---|---|
-| **Frontend** | Next.js 14 (App Router) + TypeScript |
-| **UI Styling** | Tailwind CSS + Framer Motion |
+| **Frontend** | Next.js 16 (App Router) + TypeScript |
+| **UI Styling** | Tailwind CSS v3 + Framer Motion + Plus Jakarta Sans |
 | **Authentication** | Clerk (`@clerk/nextjs`) |
 | **Metadata DB** | Supabase (PostgreSQL) |
 | **Backend** | FastAPI + Uvicorn |
@@ -194,9 +194,15 @@ health_ai_project/
     │       └── reports/[id]/route.ts # GET/DELETE — Fetch or delete specific report
     ├── components/
     │   ├── Dashboard.tsx
-    │   └── ChatComponent.tsx
+    │   ├── ChatComponent.tsx
+    │   └── ui/
+    │       ├── AnalysisProgress.tsx  # Animated analysis loading screen
+    │       ├── CbcChart.tsx          # Recharts CBC parameter chart
+    │       ├── ConfirmModal.tsx      # Delete confirmation dialog
+    │       └── Toast.tsx             # Global toast notification system
     ├── lib/
-    │   └── supabase.ts
+    │   ├── supabase.ts
+    │   └── sanitize.ts              # DOMPurify HTML sanitizer (SSR-safe)
     ├── middleware.ts              # Clerk auth middleware
     ├── Dockerfile
     └── nginx.conf

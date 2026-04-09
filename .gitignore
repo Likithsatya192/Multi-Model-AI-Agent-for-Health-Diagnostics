@@ -232,7 +232,20 @@ faiss_index/
 logs/
 *.tmp
 test_import.py
+
+# IDE / Editor
 .vscode/
 .idea/
-.claude
+
+# Claude Code & AI tooling (never commit)
+.claude/
 CLAUDE.md
+.superpowers/
+docs/superpowers/
+
+# Frontend — sensitive & generated
+frontend/firebase_key.json
+*firebase_key.json
+**/tsconfig.tsbuildinfo
+frontend/.next/
+frontend/out/

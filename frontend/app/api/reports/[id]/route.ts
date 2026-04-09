@@ -4,15 +4,17 @@ import { supabase } from "@/lib/supabase";
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { userId } = await auth();
   if (!userId) return new Response("Unauthorized", { status: 401 });
 
+  const { id } = await params;
+
   const { data, error } = await supabase
     .from("reports")
     .select("id, filename, title, risk_score, rag_collection_name, created_at, analysis_data")
-    .eq("id", params.id)
+    .eq("id", id)
     .eq("user_id", userId)
     .single();
 
@@ -33,15 +35,17 @@ export async function GET(
 
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { userId } = await auth();
   if (!userId) return new Response("Unauthorized", { status: 401 });
 
+  const { id } = await params;
+
   const { error } = await supabase
     .from("reports")
     .delete()
-    .eq("id", params.id)
+    .eq("id", id)
     .eq("user_id", userId);
 
   if (error) {
