@@ -246,6 +246,14 @@ docs/superpowers/
 # Frontend — sensitive & generated
 frontend/firebase_key.json
 *firebase_key.json
+frontend/.env.local
+frontend/.env*.local
 **/tsconfig.tsbuildinfo
 frontend/.next/
 frontend/out/
+
+# Service account / private keys — NEVER commit
+*service_account*.json
+*_key.json
+*-key.json
+*credentials*.json

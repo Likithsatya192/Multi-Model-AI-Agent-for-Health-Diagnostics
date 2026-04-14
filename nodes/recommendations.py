@@ -1,37 +1,153 @@
+import logging
 from typing import List
 from pydantic import BaseModel, Field
-from utils.llm_utils import get_llm
+from utils.llm_utils import get_llm, get_fallback_llm
+
+logger = logging.getLogger(__name__)
+
+
+class Recommendation(BaseModel):
+    priority: str = Field(
+        description="Priority level: 'critical' | 'urgent' | 'follow-up' | 'lifestyle'"
+    )
+    action: str = Field(
+        description="Specific, actionable recommendation in 1-2 sentences."
+    )
+    reason: str = Field(
+        description="Brief clinical reason this recommendation applies to THIS patient's results."
+    )
+
 
 class RecsOutput(BaseModel):
-    recommendations: List[str] = Field(description="List of actionable health recommendations")
+    recommendations: List[Recommendation] = Field(
+        description="Ordered list of 4-7 recommendations, most critical first."
+    )
+
 
 def recommendations_node(state):
     """
-    Generates personalized recommendations based on the synthesized findings.
+    Node: Generate prioritised, patient-specific recommendations.
+
+    Uses patterns, risk score, critical flags, and urgency — not just synthesis text.
+    Produces structured recommendations with priority levels.
     """
-    synthesis = state.synthesis_report
-    if not synthesis:
+    synthesis = state.synthesis_report or ""
+    patterns = state.patterns or []
+    risk = state.risk_assessment or {}
+    context = state.context_analysis or {}
+    interpreted = state.param_interpretation or {}
+    patient_info = state.patient_info or {}
+
+    if not synthesis and not interpreted:
+        logger.warning("recommendations: no synthesis or interpretation data")
         return {"recommendations": []}
 
-    llm = get_llm()
-    # structured_llm = llm.with_structured_output(RecsOutput)
+    # Collect critical and severe params for the prompt
+    critical_params = [
+        f"{name} = {info['value']} {info.get('unit','')} [{info.get('status','').upper()}]"
+        for name, info in interpreted.items()
+        if info.get("is_critical")
+    ]
+    severe_params = [
+        f"{name} = {info['value']} {info.get('unit','')} [{info.get('status','').upper()}, {info.get('severity','')}]"
+        for name, info in interpreted.items()
+        if info.get("severity") in ("severe", "moderate") and not info.get("is_critical")
+    ]
+
+    urgency = context.get("urgency", "routine")
+    risk_score = risk.get("score", 0)
+    patterns_str = "\n  ".join(patterns) if patterns else "  None"
+    critical_str = "\n  ".join(critical_params) if critical_params else "  None"
+    severe_str = "\n  ".join(severe_params) if severe_params else "  None"
+    age = patient_info.get("Age", "Unknown")
+    gender = patient_info.get("Gender", "Unknown")
+
     from langchain_core.output_parsers import PydanticOutputParser
     parser = PydanticOutputParser(pydantic_object=RecsOutput)
-    
-    prompt = f"""
-    Based on the following medical report summary:
-    
-    "{synthesis}"
-    
-    Provide 3-5 actionable health, diet, or lifestyle recommendations.
-    Be specific but safe (always advise consulting a doctor).
-    
-    {parser.get_format_instructions()}
-    """
-    
+
+    prompt = f"""You are a clinical AI generating personalised, actionable health recommendations
+based on a patient's CBC blood test analysis.
+
+═══════════════════════════════════════
+PATIENT CONTEXT
+═══════════════════════════════════════
+Age: {age} | Gender: {gender}
+Risk Score: {risk_score}/10 | Urgency: {urgency.upper()}
+
+═══════════════════════════════════════
+CRITICAL VALUE ALERTS (immediate attention needed)
+═══════════════════════════════════════
+  {critical_str}
+
+═══════════════════════════════════════
+SEVERE / MODERATE ABNORMALITIES
+═══════════════════════════════════════
+  {severe_str}
+
+═══════════════════════════════════════
+CLINICAL PATTERNS
+═══════════════════════════════════════
+  {patterns_str}
+
+═══════════════════════════════════════
+SYNTHESIS SUMMARY
+═══════════════════════════════════════
+{synthesis[:1500]}
+
+═══════════════════════════════════════
+RECOMMENDATION RULES (MANDATORY)
+═══════════════════════════════════════
+
+PRIORITY LEVELS — assign in this order:
+1. 'critical'   → Any critical alert parameter. Recommend immediate medical evaluation.
+                   Example: "Go to an emergency room or call your doctor immediately."
+2. 'urgent'     → Risk score ≥7 or urgency='urgent'. Recommend seeing a doctor within 24-48 hours.
+3. 'follow-up'  → Moderate abnormalities or specific lab retests. Recommend within 1-4 weeks.
+4. 'lifestyle'  → Diet, hydration, exercise, sleep, supplement guidance relevant to findings.
+
+SPECIFICITY RULES:
+- Each recommendation must reference the SPECIFIC abnormal finding it addresses.
+- Do NOT give generic advice like "eat healthy" without tying it to a specific pattern.
+- If Hemoglobin/Iron low → specify iron-rich foods + Vitamin C for absorption.
+- If WBC elevated → do NOT recommend self-treatment; refer to physician immediately.
+- If Platelets low → advise avoiding NSAIDs/aspirin, avoid trauma.
+- Always end critical/urgent recommendations with "consult your doctor."
+
+SAFETY RULES:
+- Do NOT recommend specific medications or dosages.
+- Do NOT make definitive diagnoses.
+- Always advise professional consultation for any abnormal findings.
+- Lifestyle recommendations are supplementary, not replacements for medical care.
+
+Generate 4-7 recommendations, most critical first.
+
+{parser.get_format_instructions()}
+"""
+
     try:
+        llm = get_llm()
         response = llm.invoke(prompt)
         parsed = parser.invoke(response)
-        return {"recommendations": parsed.recommendations}
+
+        # Flatten to list of strings for backward compatibility with frontend
+        rec_strings = [
+            f"[{r.priority.upper()}] {r.action} ({r.reason})"
+            for r in parsed.recommendations
+        ]
+        logger.info(f"recommendations: {len(rec_strings)} generated, urgency={urgency}")
+        return {"recommendations": rec_strings}
+
     except Exception as e:
-        return {"errors": state.errors + [f"Recommendations Node failed: {str(e)}"]}
+        logger.warning(f"recommendations primary model failed: {e}. Trying fallback.")
+        try:
+            llm = get_fallback_llm()
+            response = llm.invoke(prompt)
+            parsed = parser.invoke(response)
+            rec_strings = [
+                f"[{r.priority.upper()}] {r.action} ({r.reason})"
+                for r in parsed.recommendations
+            ]
+            return {"recommendations": rec_strings}
+        except Exception as e2:
+            logger.error(f"recommendations fallback also failed: {e2}")
+            return {"errors": state.errors + [f"Recommendations Node failed: {str(e2)}"]}

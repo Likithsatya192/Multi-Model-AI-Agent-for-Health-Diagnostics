@@ -6,12 +6,16 @@ An AI-powered Complete Blood Count (CBC) report analyzer with RAG-based Q&A. Upl
 
 ## Features
 
-- **Automated CBC Analysis** — Upload a PDF or image; the 8-node LangGraph pipeline extracts, validates, interprets, and synthesizes the report.
-- **Multi-Model Insights** — Per-parameter classification (LOW/NORMAL/HIGH), pattern recognition, risk scoring, contextual analysis (age/gender), and clinical recommendations.
-- **RAG Chatbot** — Ask natural-language questions about your report; answers are grounded in your specific results via FAISS vector search.
+- **Automated CBC Analysis** — Upload a PDF or image (up to 20 MB); the 8-node LangGraph pipeline extracts, validates, interprets, and synthesizes the report. Multi-page PDFs fully supported.
+- **Multi-Model Insights** — Per-parameter classification with clinical severity levels (mild/moderate/severe/critical), percent deviation from reference midpoint, pattern recognition, risk scoring (1–10), age/gender-adjusted contextual analysis, and prioritised recommendations (critical/urgent/follow-up/lifestyle).
+- **Gender-Aware Reference Ranges** — Hemoglobin, RBC, PCV, and other gender-dimorphic parameters use sex-specific normal ranges when patient gender is present in the report.
+- **LLM Fallback Chain** — All analysis nodes try `openai/gpt-oss-120b` first; automatically fall back to `llama-3.3-70b-versatile` on failure. No silent crashes.
+- **RAG Chatbot** — Ask natural-language questions about your report; answers grounded in your specific results via FAISS vector search + conversation history (last 10 turns).
+- **FAISS Index Integrity** — Each persisted FAISS index is SHA-256 hashed on write and verified before load, preventing tampered-index code execution.
 - **Secure Authentication** — Clerk-based auth (Google + email/password) protecting all routes.
+- **Rate Limiting** — `/analyze` capped at 10 req/min, `/chat` at 30 req/min per IP via `slowapi`.
 - **User History** — Report metadata stored in Supabase (PostgreSQL).
-- **Production Ready** — Fully Dockerized with Nginx, CI/CD to AWS EC2 via GitHub Actions.
+- **Production Hardened** — Fully Dockerized with Nginx, CI/CD to AWS EC2 via GitHub Actions. Structured JSON logging, real health check endpoint, session TTL cleanup, file type + size validation, CORS restricted to configured origin.
 
 ---
 
@@ -51,17 +55,17 @@ Browser → Nginx → Next.js (frontend:3000)
 
 ```mermaid
 flowchart TD
-    A([Start: File Upload]) --> B[ingest_and_ocr\nPyMuPDF + Tesseract]
-    B --> C[extract_parameters\nGroq openai/gpt-oss-120b — CBC values]
-    C --> D[validate_standardize\nreference_ranges.json]
-    D --> E[model1_interpretation\nLOW / NORMAL / HIGH per param]
-    E --> F[model2_patterns\nPattern recognition + Risk score]
-    F --> G[model3_context\nAge & gender context]
-    G --> H[synthesis\nComprehensive report generation]
-    H --> I[recommendations\nClinical recommendations]
+    A([Start: File Upload]) --> B[ingest_and_ocr\nPyMuPDF native extraction → multi-page OCR fallback]
+    B --> C[extract_parameters\nGroq LLM — structured CBC value extraction]
+    C --> D[validate_standardize\nGender-specific reference ranges + scale normalisation]
+    D --> E[model1_interpretation\nSeverity classification + critical threshold alerts]
+    E --> F[model2_patterns\nPattern recognition + Risk score 1–10]
+    F --> G[model3_context\nAge/gender-adjusted analysis + urgency level]
+    G --> H[synthesis\nComprehensive report with AI disclaimer]
+    H --> I[recommendations\nPrioritised: critical → urgent → follow-up → lifestyle]
     I --> K([End: ReportState returned to API])
     
-    K --> J[rag_indexing_node\nPost-pipeline: Chunk → Embed → FAISS index]
+    K --> J[rag_indexing_node\nPost-pipeline: Chunk → Embed → FAISS index with integrity hash]
 
     style A fill:#4ade80,color:#000
     style K fill:#4ade80,color:#000
@@ -69,6 +73,19 @@ flowchart TD
 ```
 
 *Note: The `rag_indexing_node` is invoked after the main 8-node pipeline completes, not as part of the LangGraph DAG.*
+
+#### Node responsibilities
+
+| Node | Output added to state |
+|---|---|
+| `ingest_and_ocr` | `raw_text` — native PDF text or multi-page OCR (all pages) |
+| `extract_parameters` | `extracted_params`, `patient_info` — LLM-parsed CBC values + demographics |
+| `validate_standardize` | `validated_params` — gender-adjusted flags (LOW/NORMAL/HIGH), scale-normalised values |
+| `model1_interpretation` | `param_interpretation` — severity (mild/moderate/severe/critical), % deviation, critical alerts |
+| `model2_patterns` | `patterns`, `risk_assessment` — clinical syndrome list + risk score 1–10 |
+| `model3_context` | `context_analysis` — age/gender context, adjusted concerns, urgency level |
+| `synthesis` | `synthesis_report` — patient-friendly narrative with AI disclaimer |
+| `recommendations` | `recommendations` — prioritised action list with clinical rationale |
 
 ### RAG Chat Flow
 
@@ -231,6 +248,9 @@ cd health_ai_project
 **Root `.env`** (backend):
 ```env
 GROQ_API_KEY=your_groq_api_key
+ALLOWED_ORIGINS=http://localhost:3000          # comma-separated in prod, e.g. https://yourdomain.com
+FAISS_INDEX_DIR=faiss_index                   # optional, default: faiss_index/
+TESSERACT_CMD=/usr/bin/tesseract              # optional, auto-detected on Windows
 ```
 
 **`frontend/.env.local`** (Next.js):
@@ -239,8 +259,10 @@ NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_...
 CLERK_SECRET_KEY=sk_...
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
-FASTAPI_URL=http://localhost:8000   # use http://backend:8000 inside Docker
+FASTAPI_URL=http://localhost:8000             # use http://backend:8000 inside Docker
 ```
+
+> **Security:** Never commit `.env` or `frontend/.env.local`. Both are in `.gitignore`. Rotate any keys that were previously committed to git history.
 
 ### 3. Run with Docker (recommended)
 
@@ -335,11 +357,25 @@ CI/CD is handled by `.github/workflows/deploy.yml`. On every push to `main`:
 
 ---
 
+## API Reference
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/analyze` | — | Upload CBC file; returns full analysis. Rate limited: 10/min/IP. |
+| `POST` | `/chat` | — | Ask question about a report. Rate limited: 30/min/IP. |
+| `GET` | `/health` | — | Health check — verifies env vars and FAISS dir. Returns `200 ok` or `503 degraded`. |
+| `GET` | `/docs` | — | Swagger UI (FastAPI auto-generated). |
+
+---
+
 ## Notes
 
 - **Report Data** — Analysis results and metadata are persisted in Supabase (`reports` table). User can retrieve past reports across backend restarts.
-- **Chat History** — Session-based chat history is in-memory only; restarting the backend clears all active chat sessions. Users must re-upload or re-open a report to resume analysis.
-- **FAISS Indexes** — Vector indexes are persisted to `faiss_index/<namespace>/` inside the backend container via the `faiss_data` Docker volume.
+- **Chat History** — Session-based, in-memory; sessions expire after 1 hour of inactivity and are cleaned up automatically by a background thread. Restarting the backend clears all active sessions.
+- **FAISS Indexes** — Persisted to `faiss_index/<namespace>/` via the `faiss_data` Docker volume. Each index is SHA-256 hashed on write; hash is verified before any load to prevent tampered-index attacks.
+- **LLM Fallback** — All pipeline nodes try `openai/gpt-oss-120b` first. On failure, automatically retry with `llama-3.3-70b-versatile`. Server fails fast at startup if `GROQ_API_KEY` is missing.
+- **Multi-page OCR** — For scanned PDFs, all pages are OCR'd (not just page 1) and concatenated before extraction.
+- **AI Disclaimer** — All generated synthesis reports include a disclaimer that the output is AI-generated and does not constitute medical advice.
 - **Testing** — No backend test suite exists; test manually via Swagger UI at `/docs` or using the Streamlit UI (`streamlit run app.py`).
 
 ---

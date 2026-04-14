@@ -1,6 +1,9 @@
+import logging
 from typing import List
 from pydantic import BaseModel, Field
-from utils.llm_utils import get_llm
+from utils.llm_utils import get_llm, get_fallback_llm
+
+logger = logging.getLogger(__name__)
 
 class PatternOutput(BaseModel):
     patterns: List[str] = Field(description="List of identified clinical patterns (e.g., 'Microcytic Anemia', 'Leukocytosis')")
@@ -17,9 +20,6 @@ def model2_patterns_node(state):
     if not validated:
         return {"patterns": [], "risk_assessment": {}}
 
-    llm = get_llm()
-    # structured_llm = llm.with_structured_output(PatternOutput) # Fails on some models
-    
     from langchain_core.output_parsers import PydanticOutputParser
     parser = PydanticOutputParser(pydantic_object=PatternOutput)
 
@@ -168,15 +168,25 @@ def model2_patterns_node(state):
 
     """
 
+    def _invoke_with_fallback(p):
+        try:
+            return parser.invoke(get_llm().invoke(p))
+        except Exception as e:
+            logger.warning(f"model2_patterns primary failed: {e}. Trying fallback.")
+            return parser.invoke(get_fallback_llm().invoke(p))
+
     try:
-        response = llm.invoke(prompt)
-        parsed_response = parser.invoke(response)
+        parsed_response = _invoke_with_fallback(prompt)
+        # Clamp risk score to valid range
+        score = max(1, min(10, parsed_response.risk_score))
+        logger.info(f"model2_patterns: {len(parsed_response.patterns)} patterns, risk={score}")
         return {
             "patterns": parsed_response.patterns,
             "risk_assessment": {
-                "score": parsed_response.risk_score,
-                "rationale": parsed_response.risk_rationale
-            }
+                "score": score,
+                "rationale": parsed_response.risk_rationale,
+            },
         }
     except Exception as e:
+        logger.error(f"model2_patterns all models failed: {e}")
         return {"errors": state.errors + [f"Model 2 (Patterns) failed: {str(e)}"]}

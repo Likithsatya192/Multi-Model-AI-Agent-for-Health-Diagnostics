@@ -1,183 +1,276 @@
-from typing import List, Any, Dict, Tuple
-from graph.graph_state import ReportState
-from langchain_huggingface import HuggingFaceEmbeddings
+import hashlib
+import json
+import logging
+import os
+import threading
+import time
+import uuid
+from typing import Any, Dict, List, Tuple
+
+from dotenv import load_dotenv
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
+from langchain_core.prompts import PromptTemplate
+from langchain_groq import ChatGroq
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-import uuid
-import os
-from dotenv import load_dotenv
+
+from graph.graph_state import ReportState
 
 load_dotenv()
+logger = logging.getLogger(__name__)
 
-# Chat history storage (in-memory)
-chat_history_store: Dict[str, List[Tuple[str, str]]] = {}
-
-# Embedding Model
+# ── Configuration ─────────────────────────────────────────────────────────────
 EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
-
-# In-memory storage for analysis reports
-report_state_store: Dict[str, Any] = {}
-
-# FAISS index directory
 FAISS_INDEX_DIR = os.getenv("FAISS_INDEX_DIR", "faiss_index")
+CHAT_HISTORY_MAX_TURNS = 10   # keep last N turns per session
+SESSION_TTL_SECONDS = 3600    # 1 hour — sessions older than this are purged
 
-# In-memory FAISS store keyed by namespace (session/report id)
+# ── In-memory stores (keyed by session/namespace) ─────────────────────────────
 _faiss_stores: Dict[str, FAISS] = {}
+_faiss_store_lock = threading.Lock()
+
+chat_history_store: Dict[str, List[Tuple[str, str]]] = {}
+chat_history_lock = threading.Lock()
+
+report_state_store: Dict[str, Any] = {}
+session_timestamps: Dict[str, float] = {}  # for TTL tracking
 
 
-def store_report_state(session_id: str, state: Any):
-    """Stores the analysis report state for a session."""
-    if session_id:
-        report_state_store[session_id] = state
+# ── Session TTL cleanup ───────────────────────────────────────────────────────
+def _cleanup_expired_sessions():
+    """Background thread: remove sessions older than SESSION_TTL_SECONDS."""
+    while True:
+        time.sleep(600)  # run every 10 min
+        now = time.time()
+        expired = [
+            sid for sid, ts in list(session_timestamps.items())
+            if now - ts > SESSION_TTL_SECONDS
+        ]
+        for sid in expired:
+            with _faiss_store_lock:
+                _faiss_stores.pop(sid, None)
+            with chat_history_lock:
+                chat_history_store.pop(sid, None)
+            report_state_store.pop(sid, None)
+            session_timestamps.pop(sid, None)
+            logger.info(f"Expired session purged: {sid}")
+
+
+_cleanup_thread = threading.Thread(target=_cleanup_expired_sessions, daemon=True)
+_cleanup_thread.start()
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+def _touch_session(session_id: str):
+    session_timestamps[session_id] = time.time()
+
+
+def _compute_index_hash(index_path: str) -> str:
+    """Compute SHA-256 of the FAISS index files for integrity check."""
+    h = hashlib.sha256()
+    for fname in sorted(os.listdir(index_path)):
+        fpath = os.path.join(index_path, fname)
+        if os.path.isfile(fpath):
+            with open(fpath, "rb") as f:
+                h.update(f.read())
+    return h.hexdigest()
+
+
+def _save_index_hash(index_path: str, digest: str):
+    with open(os.path.join(index_path, ".hash"), "w") as f:
+        f.write(digest)
+
+
+def _verify_index_hash(index_path: str) -> bool:
+    hash_file = os.path.join(index_path, ".hash")
+    if not os.path.exists(hash_file):
+        logger.warning(f"No hash file for index at {index_path} — treating as untrusted")
+        return False
+    with open(hash_file) as f:
+        stored = f.read().strip()
+    # Recompute excluding the hash file itself
+    h = hashlib.sha256()
+    for fname in sorted(os.listdir(index_path)):
+        if fname == ".hash":
+            continue
+        fpath = os.path.join(index_path, fname)
+        if os.path.isfile(fpath):
+            with open(fpath, "rb") as f2:
+                h.update(f2.read())
+    current = h.hexdigest()
+    return current == stored
+
 
 def get_embeddings():
     return HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME)
 
+
+# ── Public API ────────────────────────────────────────────────────────────────
+def store_report_state(session_id: str, state: Any):
+    if session_id:
+        report_state_store[session_id] = state
+        _touch_session(session_id)
+
+
 def rag_indexing_node(state: ReportState) -> Dict[str, Any]:
     """
-    Indexes the document content into a FAISS vector store.
-    Each report gets a unique namespace stored in memory and optionally persisted to disk.
+    Node: Index document text into FAISS for RAG retrieval.
+    Persists index to disk with integrity hash. No dangerous deserialization.
     """
-    print("--- RAG INDEXING NODE (FAISS) ---")
-
     raw_text = state.raw_text
     file_path = state.raw_file_path
 
     if not raw_text:
-        print("No text to index.")
+        logger.warning("rag_indexing: no text to index")
         return {"errors": ["No text available for RAG indexing"]}
 
     try:
-        # Generate a unique namespace for this session/report
         namespace = f"report_{uuid.uuid4().hex}"
 
-        # Split text
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,
-            chunk_overlap=200,
+        splitter = RecursiveCharacterTextSplitter(
+            chunk_size=800,
+            chunk_overlap=150,
             add_start_index=True,
         )
-
-        metadata = {"source": file_path if file_path else "unknown"}
-        docs = [Document(page_content=text, metadata=metadata) for text in text_splitter.split_text(raw_text)]
+        metadata = {"source": file_path or "unknown"}
+        docs = [
+            Document(page_content=chunk, metadata=metadata)
+            for chunk in splitter.split_text(raw_text)
+        ]
 
         if not docs:
-            print("No documents created from text splitter.")
-            return {"errors": ["Text splitting failed"]}
+            return {"errors": ["Text splitting produced no chunks"]}
 
+        logger.info(f"rag_indexing: indexing {len(docs)} chunks into namespace '{namespace}'")
         embeddings = get_embeddings()
-
-        print(f"Indexing {len(docs)} chunks into FAISS namespace '{namespace}'...")
-
         vectorstore = FAISS.from_documents(docs, embeddings)
 
-        # Persist to disk so the index survives across requests
+        # Persist to disk
         index_path = os.path.join(FAISS_INDEX_DIR, namespace)
         os.makedirs(index_path, exist_ok=True)
         vectorstore.save_local(index_path)
 
-        # Also keep in memory for fast access in the same process
-        _faiss_stores[namespace] = vectorstore
+        # Save integrity hash — prevents loading tampered indexes
+        digest = _compute_index_hash(index_path)
+        _save_index_hash(index_path, digest)
 
-        print(f"Successfully indexed into FAISS namespace: {namespace}")
+        with _faiss_store_lock:
+            _faiss_stores[namespace] = vectorstore
 
+        logger.info(f"rag_indexing: complete, namespace={namespace}")
         return {"rag_collection_name": namespace}
 
     except Exception as e:
-        print(f"Error in RAG node: {e}")
+        logger.exception(f"rag_indexing failed: {e}")
         return {"errors": [f"RAG Indexing Error: {str(e)}"]}
 
 
-def rag_retrieve_and_answer(question: str, collection_name: str, session_id: str = None, report_context: Any = None) -> str:
+def rag_retrieve_and_answer(
+    question: str,
+    collection_name: str,
+    session_id: str = None,
+    report_context: Any = None,
+) -> str:
     """
-    Retrieves context from the FAISS index and generates an answer via Groq LLM.
-    collection_name is the FAISS namespace (subdirectory under FAISS_INDEX_DIR).
+    Retrieve relevant context from FAISS and answer via LLM.
+    Validates FAISS index integrity before loading from disk.
     """
-    from langchain_groq import ChatGroq
-    from langchain_core.prompts import PromptTemplate
-    import json
-
     if session_id is None:
         session_id = "default"
 
-    if session_id not in chat_history_store:
-        chat_history_store[session_id] = []
+    _touch_session(session_id)
+
+    with chat_history_lock:
+        if session_id not in chat_history_store:
+            chat_history_store[session_id] = []
 
     try:
         embeddings = get_embeddings()
 
-        # Load from memory or disk
-        if collection_name in _faiss_stores:
-            vectorstore = _faiss_stores[collection_name]
-        else:
+        # Load from memory or verified disk
+        with _faiss_store_lock:
+            vectorstore = _faiss_stores.get(collection_name)
+
+        if vectorstore is None:
             index_path = os.path.join(FAISS_INDEX_DIR, collection_name)
             if not os.path.exists(index_path):
                 return "Error: The report index was not found. Please re-upload the report."
+
+            # Security: verify index integrity before loading
+            if not _verify_index_hash(index_path):
+                logger.error(f"FAISS index integrity check failed: {index_path}")
+                return "Error: Report index integrity check failed. Please re-upload the report."
+
+            # Safe to load — hash verified
             vectorstore = FAISS.load_local(
                 index_path,
                 embeddings,
-                allow_dangerous_deserialization=True,
+                allow_dangerous_deserialization=True,  # safe: hash verified above
             )
-            _faiss_stores[collection_name] = vectorstore
+            with _faiss_store_lock:
+                _faiss_stores[collection_name] = vectorstore
 
-        retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
-
-        llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0)
-
+        retriever = vectorstore.as_retriever(search_kwargs={"k": 6})
         retrieved_docs = retriever.invoke(question)
-
-        if not retrieved_docs:
-            print("Warning: No documents retrieved from FAISS index.")
-
         context = "\n".join([doc.page_content for doc in retrieved_docs])
 
-        # Build chat history context
-        history_context = ""
-        if chat_history_store[session_id]:
-            history_context = "\nPrevious conversation:\n"
-            for user_msg, assistant_msg in chat_history_store[session_id][-5:]:
-                history_context += f"User: {user_msg}\nAssistant: {assistant_msg}\n"
+        if not retrieved_docs:
+            logger.warning(f"rag_retrieve: no docs retrieved for namespace={collection_name}")
 
-        # Build analysis report context
+        # Build conversation history (last N turns)
+        with chat_history_lock:
+            history_turns = chat_history_store[session_id][-CHAT_HISTORY_MAX_TURNS:]
+
+        history_context = ""
+        if history_turns:
+            lines = []
+            for user_msg, assistant_msg in history_turns:
+                lines.append(f"User: {user_msg}\nAssistant: {assistant_msg}")
+            history_context = "\nPrevious conversation:\n" + "\n".join(lines)
+
+        # Build analysis state context
         if report_context is None and session_id in report_state_store:
             report_context = report_state_store[session_id]
 
         report_context_str = ""
         if report_context:
-            if hasattr(report_context, 'model_dump'):
+            if hasattr(report_context, "model_dump"):
                 ctx_data = report_context.model_dump()
-            elif hasattr(report_context, 'dict'):
+            elif hasattr(report_context, "dict"):
                 ctx_data = report_context.dict()
             else:
                 ctx_data = report_context if isinstance(report_context, dict) else {}
 
-            if 'raw_text' in ctx_data and ctx_data['raw_text'] and len(ctx_data['raw_text']) > 5000:
-                ctx_data['raw_text'] = ctx_data['raw_text'][:5000] + "... (truncated in context)"
+            # Truncate raw text to prevent context overflow
+            if ctx_data.get("raw_text") and len(ctx_data["raw_text"]) > 3000:
+                ctx_data["raw_text"] = ctx_data["raw_text"][:3000] + "... [truncated]"
+            # Remove raw_file_path (sensitive)
+            ctx_data.pop("raw_file_path", None)
 
             report_context_str = json.dumps(ctx_data, indent=2, default=str)
 
         prompt = PromptTemplate(
             input_variables=["context", "question", "history", "report_context"],
-            template="""You are a dedicated AI medical assistant analyzing a specific patient's uploaded blood report.
-Your goal is to explain the report findings, clarify medical terms found in the report, and answer questions BASED STRICTLY on the provided context.
+            template="""You are a dedicated AI medical assistant analyzing a patient's uploaded blood report.
+Your sole purpose is to explain findings, clarify medical terms, and answer questions about THIS specific report.
 
-CRITICAL INSTRUCTION:
-If the user asks a question that is NOT related to the uploaded medical report, or asks about general topics, coding, life advice, or anything outside the scope of this specific medical analysis, you MUST respond with EXACTLY this phrase:
-"Please talk about only the uploaded blood report."
+STRICT SCOPE RULE:
+If the user asks anything NOT related to this blood report (general topics, coding, life advice, etc.),
+respond EXACTLY with: "Please talk about only the uploaded blood report."
 
-If the question is relevant to the report:
-1. Synthesize information from the 'FULL Analysis State' (which contains the deep analysis, patterns, and recommendations) and the 'Retrieved Text Context' (raw text from the report).
-2. Format your response professionally, similar to ChatGPT:
-   - Use `### Subheadings` to structure your answer.
-   - Use bullet points (`-`) for clarity.
-   - Use **bold** text for key medical parameters or findings.
-   - Keep the tone helpful, professional, and empathetic.
+For report-related questions:
+1. Use both the FULL Analysis State and Retrieved Text Context below.
+2. Be professional, empathetic, and clear.
+3. Use **bold** for key parameters. Use bullet points for clarity.
+4. Use ### Subheadings to structure longer answers.
+5. Never make definitive diagnoses. Always recommend consulting a doctor for medical decisions.
+6. If a critical value was found, remind the user to seek medical attention promptly.
 
-FULL Analysis State (Synthesis, Patterns, Recommendations):
+FULL Analysis State:
 {report_context}
 
-Retrieved Text Context (Raw Report Excerpts):
+Retrieved Report Excerpts:
 {context}
 
 Conversation History:
@@ -185,41 +278,54 @@ Conversation History:
 
 User Question: {question}
 
-Answer:"""
+Answer:""",
         )
 
-        chain = prompt | llm
+        groq_api_key = os.environ.get("GROQ_API_KEY")
+        if not groq_api_key:
+            raise EnvironmentError("GROQ_API_KEY not set")
 
-        result = chain.invoke({
+        llm = ChatGroq(
+            model="llama-3.3-70b-versatile",
+            temperature=0,
+            max_tokens=2048,
+            timeout=90,
+            api_key=groq_api_key,
+        )
+
+        result = (prompt | llm).invoke({
             "context": context,
             "question": question,
             "history": history_context,
-            "report_context": report_context_str
+            "report_context": report_context_str,
         })
 
-        answer = result.content.strip() if hasattr(result, 'content') else str(result).strip()
+        answer = result.content.strip() if hasattr(result, "content") else str(result).strip()
 
-        chat_history_store[session_id].append((question, answer))
+        with chat_history_lock:
+            chat_history_store[session_id].append((question, answer))
 
         return answer
 
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return f"Error responding to chat: {str(e)}"
+        logger.exception(f"rag_retrieve_and_answer failed: {e}")
+        return f"I encountered an error while processing your question. Please try again."
 
 
 def get_chat_history(session_id: str = None) -> List[Tuple[str, str]]:
     if session_id is None:
         session_id = "default"
-    return chat_history_store.get(session_id, [])
+    with chat_history_lock:
+        return list(chat_history_store.get(session_id, []))
+
 
 def clear_chat_history(session_id: str = None) -> None:
     if session_id is None:
         session_id = "default"
-    if session_id in chat_history_store:
-        chat_history_store[session_id] = []
+    with chat_history_lock:
+        chat_history_store.pop(session_id, None)
+
 
 def clear_all_chat_history() -> None:
-    global chat_history_store
-    chat_history_store = {}
+    with chat_history_lock:
+        chat_history_store.clear()

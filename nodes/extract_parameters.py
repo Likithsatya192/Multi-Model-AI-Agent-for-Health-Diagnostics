@@ -1,6 +1,9 @@
+import logging
 from typing import Optional, Union
 from pydantic import BaseModel, Field
-from utils.llm_utils import get_llm
+from utils.llm_utils import get_llm, get_fallback_llm
+
+logger = logging.getLogger(__name__)
 
 class ExtractedValue(BaseModel):
     value: float = Field(description="The numeric value extracted.")
@@ -86,8 +89,6 @@ def extract_parameters_node(state):
     if not text.strip():
         return {"extracted_params": {}, "errors": state.errors + ["No text to extract from."]}
 
-    llm = get_llm()
-    # structured_llm = llm.with_structured_output(ExtractionOutput)
     from langchain_core.output_parsers import PydanticOutputParser
     parser = PydanticOutputParser(pydantic_object=ExtractionOutput)
     
@@ -222,11 +223,23 @@ def extract_parameters_node(state):
     
     extracted = {}
     patient_info = {}
-    
+
+    def _invoke_with_fallback(p):
+        """Try primary model, fall back to secondary on failure."""
+        try:
+            llm = get_llm()
+            resp = llm.invoke(p)
+            return parser.invoke(resp)
+        except Exception as e:
+            logger.warning(f"extract_parameters primary model failed: {e}. Trying fallback.")
+            llm2 = get_fallback_llm()
+            resp2 = llm2.invoke(p)
+            return parser.invoke(resp2)
+
     try:
-        response = llm.invoke(prompt)
-        res = parser.invoke(response)
-        
+        res = _invoke_with_fallback(prompt)
+        logger.info("extract_parameters: LLM extraction succeeded")
+
         # Map back to internal keys
         mapping = {
             "Hemoglobin": "Hemoglobin",
@@ -265,7 +278,7 @@ def extract_parameters_node(state):
         if res.Gender: patient_info["Gender"] = res.Gender
 
     except Exception as e:
-        # Fallback? Or just report error.
+        logger.error(f"extract_parameters: all models failed: {e}")
         return {"extracted_params": {}, "errors": state.errors + [f"LLM Extraction failed: {str(e)}"]}
 
     return {"extracted_params": extracted, "patient_info": patient_info}

@@ -1,24 +1,38 @@
 import os
+import logging
 from langchain_groq import ChatGroq
 
-def get_llm():
+logger = logging.getLogger(__name__)
+
+# Primary model — best reasoning on Groq
+PRIMARY_MODEL = "openai/gpt-oss-120b"
+# Fallback if primary unavailable
+FALLBACK_MODEL = "llama-3.3-70b-versatile"
+
+def get_llm(model: str = None, temperature: float = 0, max_tokens: int = 4096):
     """
     Returns a configured ChatGroq instance.
-    Defaults to 'openai/gpt-oss-120b' or similar high-performing model on Groq.
+    Fails fast at call time if GROQ_API_KEY is missing.
     """
     api_key = os.environ.get("GROQ_API_KEY")
     if not api_key:
-        # Fallback for dev/demo if key is missing, though this will likely fail execution if called.
-        # We'll allow it to return None or raise handling upstream, 
-        # but for now let's assume the user will provide it.
-        pass
-    
+        raise EnvironmentError(
+            "GROQ_API_KEY environment variable is not set. "
+            "Set it before starting the server."
+        )
+
+    selected_model = model or PRIMARY_MODEL
+
     return ChatGroq(
-        # User requested "openai/gpt-oss-120b", mapping to strongest available OSS model on Groq: openai/gpt-oss-120b
-        model="openai/gpt-oss-120b",
-        temperature=0,
-        max_tokens=None,
-        timeout=None,
+        model=selected_model,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        timeout=120,       # 2 min hard timeout — prevents infinite hangs
         max_retries=2,
-        # other params...
+        api_key=api_key,
     )
+
+
+def get_fallback_llm(temperature: float = 0, max_tokens: int = 4096):
+    """Returns fallback model when primary fails."""
+    return get_llm(model=FALLBACK_MODEL, temperature=temperature, max_tokens=max_tokens)
