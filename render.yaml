@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: health-ai-backend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    # Render spins down free services after 15 min idle.
+    # Use UptimeRobot (free) to ping /health every 5 min and keep it alive.
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false          # Set manually in Render dashboard → Environment
+      - key: ALLOWED_ORIGINS
+        sync: false          # e.g. https://your-app.vercel.app
+      - key: PORT
+        value: "8000"

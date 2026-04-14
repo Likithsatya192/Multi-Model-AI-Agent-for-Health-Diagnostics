@@ -1,113 +1,73 @@
-name: Deploy to AWS EC2
+name: CI/CD — Health AI
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
     paths-ignore:
       - '**.md'
-
-env:
-  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-  IMAGE_TAG: latest
+      - 'docs/**'
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
 
 jobs:
-  build-and-deploy:
+  # ── Job 1: Lint / syntax check ────────────────────────────────────────────
+  lint:
+    name: Lint Backend
     runs-on: ubuntu-latest
-    
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v2
+      - uses: actions/setup-python@v5
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          python-version: '3.10'
+          cache: 'pip'
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+      - name: Install minimal deps for syntax check
+        run: pip install pyflakes fastapi pydantic slowapi
 
-      - name: Build and Push Backend
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/health-ai-backend:${{ env.IMAGE_TAG }}
-          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/health-ai-backend:buildcache
-          cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/health-ai-backend:buildcache,mode=max
+      - name: Syntax check
+        run: |
+          python -m pyflakes api.py
+          python -m py_compile graph/graph_builder.py graph/graph_state.py graph/run_pipeline.py
+          python -m py_compile nodes/rag_node.py nodes/ingest_and_ocr.py
 
-      - name: Build and Push Frontend
-        uses: docker/build-push-action@v4
-        with:
-          context: ./frontend
-          file: ./frontend/Dockerfile
-          push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/health-ai-frontend:${{ env.IMAGE_TAG }}
-          build-args: |
-            VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY }}
-            VITE_FIREBASE_AUTH_DOMAIN=${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
-            VITE_FIREBASE_PROJECT_ID=${{ secrets.VITE_FIREBASE_PROJECT_ID }}
-            VITE_FIREBASE_STORAGE_BUCKET=${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
-            VITE_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
-            VITE_FIREBASE_APP_ID=${{ secrets.VITE_FIREBASE_APP_ID }}
-            VITE_API_URL=/api
-          cache-from: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/health-ai-frontend:buildcache
-          cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/health-ai-frontend:buildcache,mode=max
+  # ── Job 2: Deploy backend to Render ───────────────────────────────────────
+  deploy-backend:
+    name: Deploy Backend → Render
+    needs: lint
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deploy hook
+        # Create this hook in Render dashboard:
+        # Service → Settings → Deploy Hooks → Create Hook → copy URL → add as RENDER_DEPLOY_HOOK_URL secret
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}")
+          echo "Render deploy hook response: $response"
+          if [ "$response" != "200" ] && [ "$response" != "201" ]; then
+            echo "Warning: Unexpected response $response from Render deploy hook"
+          fi
 
-      - name: Deploy to EC2
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            # 1. Create .env file with secrets
-            echo "GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}" > .env
-            echo "VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY }}" >> .env
-            echo "DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}" >> .env
-            echo "PINECONE_API_KEY=${{ secrets.PINECONE_API_KEY }}" >> .env
-            echo "PINECONE_INDEX_NAME=${{ secrets.PINECONE_INDEX_NAME }}" >> .env
-            
-            # 2. Create docker-compose.yml
-            cat <<EOF > docker-compose.yml
-            version: '3.8'
-            services:
-              backend:
-                image: ${{ secrets.DOCKER_USERNAME }}/health-ai-backend:latest
-                container_name: health_ai_backend
-                ports:
-                  - "8000:8000"
-                env_file: .env
-                restart: always
-            
-              frontend:
-                image: ${{ secrets.DOCKER_USERNAME }}/health-ai-frontend:latest
-                container_name: health_ai_frontend
-                ports:
-                  - "80:80"
-                depends_on:
-                  - backend
-                restart: always
-            EOF
-            
-            # 3. Pull and Deploy
-            # Determine if we should use 'docker compose' (v2) or 'docker-compose' (v1)
-            if docker compose version >/dev/null 2>&1; then
-              COMPOSE_CMD="sudo docker compose"
-            else
-              COMPOSE_CMD="sudo docker-compose"
-            fi
-            
-            echo "Using compose command: $COMPOSE_CMD"
-            
-            # Pull latest images
-            $COMPOSE_CMD pull
-            
-            # Restart services
-            $COMPOSE_CMD down --remove-orphans || true
-            $COMPOSE_CMD up -d --force-recreate
-            
-            # 4. Cleanup unused images
-            sudo docker image prune -f
+  # ── Job 3: Deploy frontend to Vercel ──────────────────────────────────────
+  deploy-frontend:
+    name: Deploy Frontend → Vercel
+    needs: lint
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Deploy to Vercel (production)
+        working-directory: ./frontend
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: vercel deploy --prod --token=$VERCEL_TOKEN --yes
