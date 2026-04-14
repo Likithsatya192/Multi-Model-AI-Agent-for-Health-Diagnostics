@@ -14,13 +14,17 @@ interface Message {
 interface ChatComponentProps {
   collectionName: string;
   sessionId: string;
+  reportId?: string;
+  initialChat?: Message[];
 }
 
-export default function ChatComponent({ collectionName, sessionId }: ChatComponentProps) {
+export default function ChatComponent({ collectionName, sessionId, reportId, initialChat }: ChatComponentProps) {
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<Message[]>([
-    { role: "assistant", content: "Hello! I have analyzed the report. Ask me anything about it." },
-  ]);
+  const [messages, setMessages] = useState<Message[]>(
+    initialChat && initialChat.length > 0
+      ? initialChat
+      : [{ role: "assistant", content: "Hello! I have analyzed the report. Ask me anything about it." }]
+  );
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLInputElement>(null);
@@ -41,6 +45,7 @@ export default function ChatComponent({ collectionName, sessionId }: ChatCompone
 
     const userMessage = input.trim();
     setInput("");
+    const currentMessages = [...messages];
     setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
     setLoading(true);
 
@@ -49,6 +54,8 @@ export default function ChatComponent({ collectionName, sessionId }: ChatCompone
         question: userMessage,
         collection_name: collectionName,
         session_id: sessionId,
+        report_id: reportId,
+        messages: currentMessages, // Send previous messages to help save
       });
       setMessages((prev) => [...prev, { role: "assistant", content: response.data.answer }]);
     } catch {

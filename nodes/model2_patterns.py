@@ -1,7 +1,7 @@
 import logging
 from typing import List
 from pydantic import BaseModel, Field
-from utils.llm_utils import get_llm, get_fallback_llm
+from utils.llm_utils import get_fast_llm, get_llm, get_fallback_llm
 
 logger = logging.getLogger(__name__)
 
@@ -39,20 +39,22 @@ def model2_patterns_node(state):
             
     data_str = "\n".join(data_lines)
     
-    # Prompt Augmentation
+    # Determine report type for panel-specific context
+    report_type = getattr(state, "report_type", None) or "UNKNOWN"
+
     prompt = f"""
-        You are an expert medical AI assistant specialized in hematology.
+        You are an expert medical AI assistant specialized in clinical laboratory interpretation.
         You operate as a STRICT rule-based pattern recognition system.
         Do NOT infer beyond the rules below.
+
+        Report Type: {report_type}
 
         Patient Info:
         Name: {patient_info.get('Name', 'Unknown')}
         Age: {patient_info.get('Age', 'Unknown')}
         Gender: {patient_info.get('Gender', 'Unknown')}
 
-        Input:
-        CBC blood test results (may include values, units, reference ranges,
-        and optional LOW/NORMAL/HIGH/BORDERLINE tags):
+        Lab Results (may include CBC, LFT, KFT, Lipid, Thyroid, or other panels):
         {data_str}
 
         ====================
@@ -60,94 +62,109 @@ def model2_patterns_node(state):
         ====================
 
         1. TAG PRIORITY RULE
-        - If a parameter has an explicit tag (LOW / NORMAL / HIGH / BORDERLINE),
-        TREAT THE TAG AS GROUND TRUTH.
+        - If a parameter has an explicit tag (LOW / NORMAL / HIGH / BORDERLINE / UNKNOWN),
+          TREAT THE TAG AS GROUND TRUTH.
         - IGNORE numeric intuition if the tag says NORMAL.
-        - NEVER override a NORMAL tag using personal medical knowledge.
+        - Parameters with UNKNOWN flag: include only if value strongly suggests abnormality.
 
         2. FALLBACK RULE (WHEN TAGS ARE ABSENT)
-        - If NO explicit tag is provided:
-        - Use reference range + units to infer LOW / NORMAL / HIGH.
-        - If reference range is missing or unclear → classify as "UNDETERMINED"
-            and DO NOT use it for syndrome detection.
+        - Use reference range + units to infer LOW / NORMAL / HIGH if available.
+        - If reference range is missing → classify as "UNDETERMINED" — do NOT use for diagnosis.
 
         3. UNIT AWARENESS RULE (CRITICAL)
-        - NEVER mix percentages (%) with absolute counts (×10³/µL, cells/mm³).
-        - Percentages describe DISTRIBUTION, not cytopenia.
-        - Cytopenias MUST be diagnosed ONLY using:
-        - Absolute counts OR explicit LOW tags.
-        - If both % and absolute values are present:
-        - PRIORITIZE absolute counts.
-
-        4. FOCUS RULE
-        - Consider ONLY parameters tagged or inferred as:
-        LOW, HIGH, or BORDERLINE.
-        - If no such parameters exist:
-        - Explicitly state: "No abnormal hematologic patterns detected."
+        - NEVER mix percentages (%) with absolute counts.
+        - Cytopenias: diagnose ONLY using absolute counts or explicit LOW tags.
 
         ====================
-        SYNDROME DETECTION RULES (STRICT)
+        HAEMATOLOGY PATTERNS (CBC)
         ====================
 
         Anemia Patterns:
-        - Microcytic Anemia:
-        LOW Hemoglobin + LOW MCV
-        - Macrocytic Anemia:
-        LOW Hemoglobin + HIGH MCV
-        - Normocytic Anemia:
-        LOW Hemoglobin + NORMAL MCV
+        - Microcytic Anemia:     LOW Hemoglobin + LOW MCV
+        - Macrocytic Anemia:     LOW Hemoglobin + HIGH MCV
+        - Normocytic Anemia:     LOW Hemoglobin + NORMAL MCV
+        - Iron Deficiency Anemia: LOW Hemoglobin + LOW MCV + LOW Ferritin (if present)
 
         White Cell Patterns:
-        - Leukopenia:
-        LOW Total WBC
-        - Leukocytosis:
-        HIGH Total WBC
-        - Neutropenia:
-        LOW Absolute Neutrophil Count (ANC)
-        - Lymphopenia:
-        LOW Absolute Lymphocyte Count (ALC)
-        - Acute Infection Pattern:
-        HIGH WBC + HIGH Neutrophils
-        - Chronic / Viral Pattern:
-        HIGH Absolute Lymphocytes
+        - Leukopenia:            LOW Total WBC
+        - Leukocytosis:          HIGH Total WBC
+        - Neutropenia:           LOW Absolute Neutrophils / ANC
+        - Lymphopenia:           LOW Absolute Lymphocytes
+        - Acute Infection:       HIGH WBC + HIGH Neutrophils
+        - Chronic/Viral Pattern: HIGH Absolute Lymphocytes
+        - Pancytopenia:          LOW WBC + LOW Hemoglobin + LOW Platelets
 
         Platelet Patterns:
-        - Thrombocytopenia:
-        LOW Platelets
-        - Borderline Thrombocytopenia:
-        BORDERLINE Platelets
-        (do NOT escalate unless other cytopenias exist)
+        - Thrombocytopenia:      LOW Platelets
+        - Thrombocytosis:        HIGH Platelets
 
-        Red Cell Concentration Patterns:
-        - Polycythemia:
-        HIGH Hemoglobin + HIGH PCV
-        - Hemoconcentration / Dehydration (Relative):
-        HIGH PCV + Hemoglobin LOW or NORMAL
-        (DO NOT label polycythemia)
+        RBC Concentration:
+        - Polycythemia:          HIGH Hemoglobin + HIGH PCV
+        - Hemoconcentration:     HIGH PCV + Normal/Low Hemoglobin
 
         ====================
-        CONFLICT RESOLUTION (MANDATORY)
+        LIVER FUNCTION PATTERNS (LFT)
         ====================
 
-        - If two detected patterns are physiologically contradictory
-        (e.g., Anemia and Polycythemia):
-        - PRIORITIZE diagnoses supported by Hemoglobin.
-        - SUPPRESS the conflicting diagnosis.
-        - Explicitly explain why it was suppressed.
+        - Hepatocellular Injury:   HIGH ALT + HIGH AST (ALT > AST suggests viral/toxic)
+        - Cholestatic Pattern:     HIGH ALP + HIGH GGT (with or without elevated bilirubin)
+        - Obstructive Jaundice:    HIGH Total Bilirubin + HIGH Direct Bilirubin + HIGH ALP
+        - Hepatic Synthetic Defect: LOW Albumin + LOW Total Protein
+        - Mixed Liver Disease:     HIGH transaminases + HIGH bilirubin + LOW albumin
+
+        ====================
+        KIDNEY FUNCTION PATTERNS (KFT)
+        ====================
+
+        - Acute/Chronic Kidney Disease: HIGH Creatinine + HIGH BUN/Urea
+        - Hyperuricemia:           HIGH Uric Acid
+        - Electrolyte Imbalance:   LOW/HIGH Sodium or Potassium (flag immediately if critical)
+        - Hyponatremia:            LOW Sodium (<135 mEq/L)
+        - Hyperkalemia:            HIGH Potassium (>5.5 mEq/L — life-threatening)
+
+        ====================
+        LIPID PANEL PATTERNS
+        ====================
+
+        - Dyslipidemia:            HIGH Total Cholesterol + HIGH LDL + LOW HDL
+        - Hypertriglyceridemia:    HIGH Triglycerides (>500 = pancreatitis risk)
+        - Low HDL Syndrome:        LOW HDL (cardiovascular risk)
+        - Metabolic Syndrome:      HIGH Triglycerides + LOW HDL + HIGH glucose (if present)
+
+        ====================
+        THYROID PATTERNS
+        ====================
+
+        - Hypothyroidism:          HIGH TSH + LOW Free T4 (or LOW Total T4)
+        - Hyperthyroidism:         LOW TSH + HIGH Free T4 (or HIGH T3)
+        - Subclinical Hypothyroid: HIGH TSH + NORMAL T4
+        - Subclinical Hyperthyroid: LOW TSH + NORMAL T4/T3
+
+        ====================
+        DIABETES / GLUCOSE PATTERNS
+        ====================
+
+        - Impaired Fasting Glucose: FBS 100–125 mg/dL
+        - Diabetes Mellitus:        FBS ≥126 mg/dL or HbA1c ≥6.5%
+        - Poor Glycemic Control:    HIGH HbA1c (>8% = poor; >10% = very poor)
 
         ====================
         RISK SCORING RULES
         ====================
 
-        - 1–3:
-        Single mild abnormality, no dangerous combinations
-        - 4–6:
-        One clear syndrome OR multiple mild abnormalities
-        - 7–8:
-        Multiple related cytopenias OR one severe syndrome
-        - 9–10:
-        Life-threatening patterns
-        (e.g., severe anemia, pancytopenia, sepsis pattern)
+        - 1–3: Single mild abnormality, no dangerous combinations
+        - 4–6: One clear syndrome OR multiple mild abnormalities
+        - 7–8: Multiple related abnormalities OR one severe syndrome
+        - 9–10: Life-threatening patterns (severe anemia, pancytopenia, hyperkalemia,
+                critical liver failure, pancreatitis-level triglycerides)
+
+        ====================
+        CONFLICT RESOLUTION
+        ====================
+
+        - If two detected patterns contradict each other → prioritize the one
+          supported by the most primary markers (Hemoglobin for anemia, etc.)
+        - SUPPRESS contradicted diagnosis and explain why.
 
         ====================
         TASK
@@ -156,24 +173,21 @@ def model2_patterns_node(state):
         1. Identify ONLY valid clinical patterns using the rules above.
         2. Assign a Risk Score (1–10).
         3. Provide Risk Rationale (List[str]):
-        - Mention ONLY confirmed abnormal values.
-        - Explain WHY their combination matters for THIS patient.
-        - Do NOT include textbook explanations.
-        - If no syndrome is detected, clearly state this.
+           - Mention ONLY confirmed abnormal values.
+           - Explain WHY their combination matters for THIS patient.
+           - If no syndrome is detected, clearly state: "No significant abnormal patterns detected."
 
-        ====================
-        OUTPUT FORMAT (JSON ONLY)
-        ====================
+        OUTPUT FORMAT (JSON ONLY):
         {parser.get_format_instructions()}
 
     """
 
     def _invoke_with_fallback(p):
         try:
-            return parser.invoke(get_llm().invoke(p))
+            return parser.invoke(get_fast_llm().invoke(p))
         except Exception as e:
-            logger.warning(f"model2_patterns primary failed: {e}. Trying fallback.")
-            return parser.invoke(get_fallback_llm().invoke(p))
+            logger.warning(f"model2_patterns fast model failed: {e}. Trying quality model.")
+            return parser.invoke(get_llm().invoke(p))
 
     try:
         parsed_response = _invoke_with_fallback(prompt)

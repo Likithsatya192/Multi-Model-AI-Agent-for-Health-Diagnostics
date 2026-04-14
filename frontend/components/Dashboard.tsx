@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { v4 as uuidv4 } from "uuid";
 import { useUser, useClerk } from "@clerk/nextjs";
 import axios from "axios";
@@ -38,6 +39,7 @@ interface ReportDetail extends ReportSummary {
   patterns: string[];
   context_analysis: string;
   errors: string[];
+  chat_history?: { role: "user" | "assistant"; content: string }[];
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -255,7 +257,7 @@ export default function Dashboard() {
             >
               {/* Logo row */}
               <div className="p-4 flex-shrink-0 border-b" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
-                <div className="flex items-center gap-3 px-1">
+                <Link href="/" className="flex items-center gap-3 px-1 hover:opacity-80 transition-opacity">
                   <div className="relative p-2 bg-primary/15 rounded-xl border border-primary/20">
                     <HeartPulse className="text-primary w-4.5 h-4.5" />
                     <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-accent animate-pulse" />
@@ -264,7 +266,7 @@ export default function Dashboard() {
                     <span className="text-sm font-display font-bold text-white tracking-tight block">Health AI</span>
                     <span className="text-[10px] text-primary/50 font-mono">CBC Analyzer</span>
                   </div>
-                </div>
+                </Link>
               </div>
 
               {/* New Analysis button */}
@@ -421,7 +423,7 @@ export default function Dashboard() {
           </div>
 
           {/* Scrollable content */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar">
+          <div className={`flex-1 ${view === "report" && reportTab === "chat" ? "overflow-hidden flex flex-col" : "overflow-y-auto custom-scrollbar"}`}>
 
             {/* ── UPLOAD VIEW ── */}
             {view === "upload" && (
@@ -561,7 +563,7 @@ export default function Dashboard() {
 
             {/* ── REPORT VIEW ── */}
             {view === "report" && (
-              <div className="px-6 py-8 md:px-10">
+              <div className={reportTab === "chat" ? "flex-1 flex flex-col overflow-hidden" : "px-6 py-8 md:px-10"}>
                 {loadingReport ? (
                   <div className="h-[60vh] flex flex-col items-center justify-center gap-5">
                     <div className="relative w-20 h-20">
@@ -582,10 +584,10 @@ export default function Dashboard() {
                     initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.35 }}
-                    className="max-w-5xl mx-auto space-y-6 pb-20"
+                    className={reportTab === "chat" ? "flex-1 flex flex-col overflow-hidden min-h-0" : "max-w-5xl mx-auto space-y-6 pb-20"}
                   >
                     {/* ── Report Header ── */}
-                    <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-5 pb-6 border-b border-white/5">
+                    <div className={`flex flex-col md:flex-row items-start md:items-end justify-between gap-5 border-b border-white/5 flex-shrink-0 ${reportTab === "chat" ? "px-6 py-5" : "pb-6"}`}>
                       <div>
                         <div className="flex items-center flex-wrap gap-2 mb-2">
                           <span className="px-3 py-1 rounded-full text-primary text-xs font-bold uppercase tracking-wider"
@@ -626,7 +628,7 @@ export default function Dashboard() {
 
                     {/* ── Tab Bar ── */}
                     <div
-                      className="flex gap-1 p-1 rounded-2xl w-fit"
+                      className={`flex gap-1 p-1 rounded-2xl w-fit flex-shrink-0${reportTab === "chat" ? " mx-6 my-3" : ""}`}
                       style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
                     >
                       {(["overview", "chart", "chat"] as const).map((tab) => {
@@ -855,16 +857,16 @@ export default function Dashboard() {
 
                     {/* ── CHAT TAB ── */}
                     {reportTab === "chat" && (
-                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
+                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }} className="flex-1 flex flex-col overflow-hidden min-h-0 px-6 pb-6">
                         {selectedReport.rag_collection_name ? (
                           <div
-                            className="rounded-2xl overflow-hidden"
+                            className="flex-1 rounded-2xl overflow-hidden flex flex-col min-h-0"
                             style={{
                               background: "linear-gradient(135deg, rgba(15,22,35,0.9), rgba(10,16,28,0.95))",
                               border: "1px solid rgba(139,92,246,0.12)",
                             }}
                           >
-                            <div className="p-5 border-b flex items-center justify-between" style={{ borderColor: "rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)" }}>
+                            <div className="p-5 border-b flex items-center justify-between flex-shrink-0" style={{ borderColor: "rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)" }}>
                               <div>
                                 <h3 className="text-sm font-display font-bold text-white flex items-center gap-2">
                                   <Sparkles className="w-4 h-4 text-violet-400" />
@@ -877,7 +879,12 @@ export default function Dashboard() {
                                 <span className="text-[10px] text-accent font-mono">LIVE</span>
                               </div>
                             </div>
-                            <ChatComponent collectionName={selectedReport.rag_collection_name} sessionId={sessionId} />
+                            <ChatComponent 
+                              collectionName={selectedReport.rag_collection_name} 
+                              sessionId={sessionId}
+                              reportId={selectedReport.id}
+                              initialChat={selectedReport.chat_history}
+                            />
                           </div>
                         ) : (
                           <div className="rounded-2xl p-10 text-center" style={{ background: "rgba(15,22,35,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>

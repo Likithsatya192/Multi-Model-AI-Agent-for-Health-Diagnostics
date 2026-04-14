@@ -255,7 +255,7 @@ export default function LandingPage() {
                     >
                       Dashboard <ArrowRight className="w-3.5 h-3.5" />
                     </Link>
-                    <UserButton afterSignOutUrl="/" />
+                    <UserButton />
                   </>
                 ) : (
                   <>

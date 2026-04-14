@@ -22,9 +22,11 @@ export async function POST(req: NextRequest) {
 
   const analysis = await res.json();
 
-  const title = analysis.analysis_type
-    ? `${analysis.analysis_type.replace(/_/g, " ")} Analysis`
-    : "Comprehensive Medical Synthesis";
+  let title = "CBC Report Analysis";
+  if (analysis.patterns && Array.isArray(analysis.patterns) && analysis.patterns.length > 0) {
+    // Join all detected patterns: "Microcytic Anemia & Leukocytosis"
+    title = analysis.patterns.join(" & ");
+  }
 
   const filename = file?.name ?? "unknown";
 

@@ -257,3 +257,13 @@ frontend/out/
 *_key.json
 *-key.json
 *credentials*.json
+
+# Project documents & scripts not part of the app
+FINAL_YEAR_PROJECT.docx
+build_final_thesis.py
+*.docx
+*.pptx
+
+# Frontend generated files
+frontend/tsconfig.tsbuildinfo
+frontend/node_modules/

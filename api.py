@@ -109,6 +109,7 @@ async def analyze_report(
             store_report_state(session_id, result)
 
         response_data = {
+            "report_type": result.report_type or "UNKNOWN",
             "risk_score": result.risk_assessment.get("score") if result.risk_assessment else 0,
             "risk_rationale": result.risk_assessment.get("rationale") if result.risk_assessment else "",
             "param_interpretation": result.param_interpretation,

@@ -4,6 +4,7 @@ from typing import Dict, Any, Optional, List
 class ReportState(BaseModel):
     raw_file_path: Optional[str] = None
     raw_text: Optional[str] = None
+    report_type: Optional[str] = None          # detected panel type: CBC, LFT, LIPID, etc.
     extracted_params: Dict[str, Dict[str, Any]] = {}
     validated_params: Dict[str, Dict[str, Any]] = {}
     param_interpretation: Dict[str, Dict[str, Any]] = {}
