@@ -16,17 +16,17 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # ── Speed optimization: bake embedding model into image ──────────────────────
-# Pre-downloads all-MiniLM-L6-v2 during build → zero download latency at startup
+# Use HuggingFaceEmbeddings (same code path as runtime) so model lands in
+# ~/.cache/huggingface/hub/ — the exact location HF_HUB_OFFLINE=1 reads from.
 RUN python -c "\
-from sentence_transformers import SentenceTransformer; \
-SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2'); \
+from langchain_huggingface import HuggingFaceEmbeddings; \
+HuggingFaceEmbeddings(model_name='sentence-transformers/all-MiniLM-L6-v2'); \
 print('Embedding model cached.')"
 
 # After model is baked in, disable ALL HuggingFace network calls at runtime.
 # This eliminates the 10+ HTTP HEAD requests that caused 504 on Render.
 ENV HF_HUB_OFFLINE=1 \
-    TRANSFORMERS_OFFLINE=1 \
-    SENTENCE_TRANSFORMERS_HOME=/root/.cache/torch/sentence_transformers
+    TRANSFORMERS_OFFLINE=1
 
 # Copy application code (after deps — keeps layer cache valid on code-only changes)
 COPY . .
