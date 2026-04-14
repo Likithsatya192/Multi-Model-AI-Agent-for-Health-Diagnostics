@@ -184,10 +184,10 @@ def model2_patterns_node(state):
 
     def _invoke_with_fallback(p):
         try:
-            return parser.invoke(get_fast_llm().invoke(p))
+            return parser.invoke(get_fast_llm(max_tokens=800).invoke(p))
         except Exception as e:
             logger.warning(f"model2_patterns fast model failed: {e}. Trying quality model.")
-            return parser.invoke(get_llm().invoke(p))
+            return parser.invoke(get_llm(max_tokens=800).invoke(p))
 
     try:
         parsed_response = _invoke_with_fallback(prompt)

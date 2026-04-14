@@ -132,7 +132,7 @@ TASK
 """
 
     try:
-        llm = get_llm()
+        llm = get_llm(max_tokens=900)
         response = llm.invoke(prompt)
         parsed = parser.invoke(response)
         result = {
@@ -146,7 +146,7 @@ TASK
     except Exception as e:
         logger.warning(f"model3_context primary model failed: {e}. Trying fallback.")
         try:
-            llm = get_fallback_llm()
+            llm = get_fallback_llm(max_tokens=900)
             response = llm.invoke(prompt)
             parsed = parser.invoke(response)
             return {

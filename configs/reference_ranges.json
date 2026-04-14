@@ -201,7 +201,7 @@
   "eGFR": {
     "aliases": ["Estimated GFR", "Glomerular Filtration Rate"],
     "units": ["mL/min/1.73m2"],
-    "reference": { "low": 60, "high": 120 }
+    "reference": { "low": 60, "high": 200 }
   },
 
   "Sodium": {
@@ -357,7 +357,7 @@
   "aPTT": {
     "aliases": ["APTT", "Activated Partial Thromboplastin Time"],
     "units": ["sec", "seconds"],
-    "reference": { "low": 25, "high": 35 }
+    "reference": { "low": 25, "high": 40 }
   },
   "Fibrinogen": {
     "units": ["mg/dL", "g/L"],

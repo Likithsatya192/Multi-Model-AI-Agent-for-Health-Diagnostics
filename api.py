@@ -1,3 +1,4 @@
+import asyncio
 import os
 import shutil
 import logging
@@ -103,7 +104,16 @@ async def analyze_report(
             tmp.write(contents)
             tmp_path = tmp.name
 
-        result = run_full_pipeline(tmp_path)
+        try:
+            result = await asyncio.wait_for(
+                asyncio.to_thread(run_full_pipeline, tmp_path),
+                timeout=300.0,  # 5-minute hard limit
+            )
+        except asyncio.TimeoutError:
+            raise HTTPException(
+                status_code=504,
+                detail="Analysis timed out. Large or complex reports may take longer — please try again.",
+            )
 
         if session_id:
             store_report_state(session_id, result)

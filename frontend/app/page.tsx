@@ -236,7 +236,7 @@ export default function LandingPage() {
               {["Features", "How it works", "Privacy"].map((item) => (
                 <a
                   key={item}
-                  href={`#${item.toLowerCase().replace(" ", "-")}`}
+                  href={`#${item.toLowerCase().replace(/\s+/g, "-")}`}
                   className="px-4 py-2 text-sm text-zinc-500 hover:text-white transition-colors rounded-lg hover:bg-white/5"
                 >
                   {item}
@@ -248,15 +248,7 @@ export default function LandingPage() {
             <div className="flex items-center gap-3">
               {isLoaded && (
                 isSignedIn ? (
-                  <>
-                    <Link
-                      href="/dashboard"
-                      className="px-4 py-2 text-sm font-medium text-zinc-300 hover:text-white transition-colors flex items-center gap-1.5"
-                    >
-                      Dashboard <ArrowRight className="w-3.5 h-3.5" />
-                    </Link>
-                    <UserButton />
-                  </>
+                  <UserButton />
                 ) : (
                   <>
                     <Link
@@ -323,26 +315,19 @@ export default function LandingPage() {
               you ask follow-up questions — all in minutes.
             </p>
 
-            {/* CTAs */}
+            {/* CTA */}
             <div
-              className={`flex flex-col sm:flex-row items-center justify-center gap-4 transition-all duration-700 delay-300 ${heroVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+              className={`flex items-center justify-center transition-all duration-700 delay-300 ${heroVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
             >
               <Link
                 href="/dashboard"
-                className="group relative inline-flex items-center gap-2.5 px-8 py-4 text-white font-semibold rounded-2xl text-sm overflow-hidden"
-                style={{ background: 'linear-gradient(135deg, #0EA5E9, #0284C7)', boxShadow: '0 8px 32px rgba(14,165,233,0.35), inset 0 1px 0 rgba(255,255,255,0.15)' }}
+                className="group relative inline-flex items-center gap-3 px-10 py-4 text-white font-bold rounded-2xl text-base overflow-hidden"
+                style={{ background: 'linear-gradient(135deg, #0EA5E9, #0284C7)', boxShadow: '0 0 0 3px rgba(14,165,233,0.25), 0 12px 40px rgba(14,165,233,0.45), inset 0 1px 0 rgba(255,255,255,0.2)' }}
               >
                 <div className="absolute inset-0 bg-white/0 group-hover:bg-white/10 transition-colors duration-200" />
-                <Upload className="w-4 h-4 relative" />
-                <span className="relative">Analyze a Report</span>
-                <ChevronRight className="w-4 h-4 relative group-hover:translate-x-1 transition-transform" />
-              </Link>
-              <Link
-                href="/sign-in"
-                className="inline-flex items-center gap-2 px-8 py-4 bg-white/5 border border-white/10 text-white font-medium rounded-2xl hover:bg-white/8 hover:border-white/20 transition-all duration-200 text-sm"
-              >
-                <Microscope className="w-4 h-4 text-zinc-400" />
-                View Demo
+                <HeartPulse className="w-5 h-5 relative" />
+                <span className="relative">Go to Dashboard</span>
+                <ArrowRight className="w-5 h-5 relative group-hover:translate-x-1 transition-transform" />
               </Link>
             </div>
 
@@ -575,7 +560,6 @@ export default function LandingPage() {
               {!isSignedIn && (
                 <Link href="/sign-in" className="hover:text-zinc-400 transition-colors">Sign In</Link>
               )}
-              <Link href="/dashboard" className="hover:text-zinc-400 transition-colors">Dashboard</Link>
             </div>
             <p className="text-xs text-zinc-700">Not a substitute for professional medical advice.</p>
           </div>

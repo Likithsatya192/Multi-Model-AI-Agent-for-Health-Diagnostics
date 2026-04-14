@@ -2,6 +2,9 @@ import { auth } from "@clerk/nextjs/server";
 import { NextRequest } from "next/server";
 import { supabase } from "@/lib/supabase";
 
+// Allow up to 5 minutes for OCR-heavy PDFs (Vercel/Next.js max)
+export const maxDuration = 300;
+
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return new Response("Unauthorized", { status: 401 });
@@ -10,10 +13,26 @@ export async function POST(req: NextRequest) {
   const file = formData.get("file") as File | null;
 
   const FASTAPI_URL = process.env.FASTAPI_URL || "http://localhost:8000";
-  const res = await fetch(`${FASTAPI_URL}/analyze`, {
-    method: "POST",
-    body: formData,
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 290_000); // 290s — just under backend 300s
+
+  let res: Response;
+  try {
+    res = await fetch(`${FASTAPI_URL}/analyze`, {
+      method: "POST",
+      body: formData,
+      signal: controller.signal,
+    });
+  } catch (err: unknown) {
+    clearTimeout(timeoutId);
+    const isAbort = err instanceof Error && err.name === "AbortError";
+    return Response.json(
+      { detail: isAbort ? "Analysis timed out. Please try again with a smaller file." : "Failed to reach analysis server." },
+      { status: isAbort ? 504 : 502 }
+    );
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Analysis failed" }));

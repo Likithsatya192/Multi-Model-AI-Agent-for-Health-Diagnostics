@@ -129,7 +129,7 @@ REPORT WRITING RULES (STRICT)
 """
 
     try:
-        llm = get_llm()
+        llm = get_llm(max_tokens=900)
         response = llm.invoke(prompt)
         report = response.content.strip() if hasattr(response, "content") else str(response).strip()
         logger.info(f"synthesis: report generated, urgency={urgency}, risk={risk_score}")
@@ -138,7 +138,7 @@ REPORT WRITING RULES (STRICT)
     except Exception as e:
         logger.warning(f"synthesis primary model failed: {e}. Trying fallback.")
         try:
-            llm = get_fallback_llm()
+            llm = get_fallback_llm(max_tokens=900)
             response = llm.invoke(prompt)
             report = response.content.strip() if hasattr(response, "content") else str(response).strip()
             return {"synthesis_report": report + _DISCLAIMER}

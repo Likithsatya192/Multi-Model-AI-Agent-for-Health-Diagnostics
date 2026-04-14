@@ -38,6 +38,8 @@ def recommendations_node(state):
     interpreted = state.param_interpretation or {}
     patient_info = state.patient_info or {}
 
+    errors = list(getattr(state, "errors", []) or [])
+
     if not synthesis and not interpreted:
         logger.warning("recommendations: no synthesis or interpretation data")
         return {"recommendations": []}
@@ -101,8 +103,8 @@ RECOMMENDATION RULES (MANDATORY)
 PRIORITY LEVELS — assign in this order:
 1. 'critical'   → Any critical alert parameter. Recommend immediate medical evaluation.
                    Example: "Go to an emergency room or call your doctor immediately."
-2. 'urgent'     → Risk score ≥7 or urgency='urgent'. Recommend seeing a doctor within 24-48 hours.
-3. 'follow-up'  → Moderate abnormalities or specific lab retests. Recommend within 1-4 weeks.
+2. 'urgent'     → Risk score ≥7, urgency='urgent', or urgency='prompt'. Recommend seeing a doctor within 24-48 hours.
+3. 'follow-up'  → Moderate abnormalities, urgency='follow-up', or specific lab retests. Recommend within 1-4 weeks.
 4. 'lifestyle'  → Diet, hydration, exercise, sleep, supplement guidance relevant to findings.
 
 SPECIFICITY RULES:
@@ -125,7 +127,7 @@ Generate 4-7 recommendations, most critical first.
 """
 
     try:
-        llm = get_llm()
+        llm = get_llm(max_tokens=1000)
         response = llm.invoke(prompt)
         parsed = parser.invoke(response)
 
@@ -140,7 +142,7 @@ Generate 4-7 recommendations, most critical first.
     except Exception as e:
         logger.warning(f"recommendations primary model failed: {e}. Trying fallback.")
         try:
-            llm = get_fallback_llm()
+            llm = get_fallback_llm(max_tokens=1000)
             response = llm.invoke(prompt)
             parsed = parser.invoke(response)
             rec_strings = [
@@ -149,5 +151,8 @@ Generate 4-7 recommendations, most critical first.
             ]
             return {"recommendations": rec_strings}
         except Exception as e2:
-            logger.error(f"recommendations fallback also failed: {e2}")
-            return {"errors": state.errors + [f"Recommendations Node failed: {str(e2)}"]}
+            logger.error(f"recommendations: fallback also failed: {e2}")
+            return {
+                "recommendations": [],
+                "errors": errors + [f"Recommendations Node failed: {str(e2)}"],
+            }

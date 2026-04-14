@@ -6,17 +6,17 @@ Handles ANY blood test panel from ANY country's lab format:
   Iron Studies, HbA1c/Diabetes, Electrolytes, and mixed/comprehensive panels.
 
 Strategy:
-  1. Dynamic LLM extraction — no fixed schema; captures ALL visible lab values as a list
-  2. Comprehensive alias map (250+ aliases) — maps raw lab names to canonical names
+  1. Dynamic JSON extraction — no Pydantic format instructions (saves ~700 tokens)
+  2. Comprehensive alias map (483 aliases) — maps raw lab names to canonical names
   3. Report-embedded reference ranges — captured per value, used as fallback in validation
-  4. Quality model (70b) for max accuracy; fast model as fallback
+  4. Fast 8b model (20k TPM) for extraction; quality 70b as fallback
 """
 
 import re
+import json
 import logging
 from typing import List, Optional, Union
-from pydantic import BaseModel, Field
-from utils.llm_utils import get_llm, get_fast_llm
+from utils.llm_utils import get_fast_llm, get_llm
 
 logger = logging.getLogger(__name__)
 
@@ -403,35 +403,7 @@ PARAM_ALIASES: dict[str, str] = {
 }
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Pydantic models for universal dynamic extraction
-# ─────────────────────────────────────────────────────────────────────────────
-
-class LabValue(BaseModel):
-    """One extracted lab result from any blood/lab report."""
-    raw_name: str = Field(description="Parameter name EXACTLY as printed in the report")
-    value: float = Field(description="Patient result numeric value (NOT reference range)")
-    unit: Optional[str] = Field(None, description="Unit as printed: g/dL, mg/dL, %, U/L, etc.")
-    ref_low: Optional[float] = Field(None, description="Reference range lower bound FROM the report")
-    ref_high: Optional[float] = Field(None, description="Reference range upper bound FROM the report")
-    flag: Optional[str] = Field(None, description="Abnormal flag from report: H, L, HH, LL, HIGH, LOW, CRITICAL, *, ↑, ↓, A, etc.")
-
-
-class UniversalExtractionOutput(BaseModel):
-    report_type: str = Field(
-        description=(
-            "Blood test panel type — one of: CBC, LFT, KFT, LIPID_PANEL, THYROID, "
-            "COAGULATION, IRON_STUDIES, DIABETES, ELECTROLYTES, COMPREHENSIVE, MIXED, or UNKNOWN"
-        )
-    )
-    lab_values: List[LabValue] = Field(
-        description="ALL numeric lab values found in the report, without exception"
-    )
-    patient_name: Optional[str] = Field(None, description="Patient name if visible")
-    patient_age: Optional[str] = Field(None, description="Patient age if visible")
-    patient_gender: Optional[str] = Field(None, description="Patient gender if visible")
-    report_date: Optional[str] = Field(None, description="Report/collection date if visible")
-    lab_name: Optional[str] = Field(None, description="Laboratory/hospital name if visible")
+# Pydantic removed — we parse JSON directly for robustness and token efficiency
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -492,69 +464,57 @@ def _parse_float(val) -> Optional[float]:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Universal extraction prompt
+# Compact extraction prompt — ~300 tokens (was ~1400 with Pydantic instructions)
 # ─────────────────────────────────────────────────────────────────────────────
 
-_EXTRACTION_PROMPT = """You are a universal medical lab report parser. Your ONLY job:
-Extract EVERY numeric laboratory test result visible in the report below.
+_EXTRACTION_PROMPT = """Extract ALL laboratory test values from this blood/lab report. Output JSON only, no other text.
 
-You MUST handle ANY blood/lab report regardless of:
-- Panel type: CBC, LFT, KFT/RFT, Lipid Panel, Thyroid, Coagulation, Iron Studies, HbA1c, Electrolytes, Comprehensive, or any combination
-- Country of origin: India (path labs, NABL-certified), USA (CLIA), Europe (ISO 15189), Middle East, Asia
-- Lab format: portrait/landscape tables, multi-column, multi-row, handwritten OCR
-- Number format: European decimals (1,5 = 1.5), Indian lakhs (1,50,000), scientific (10^3), with/without separators
-- OCR quality: handle common errors: O↔0, l↔1, I↔1, rn↔m, S↔5
+Required JSON structure:
+{{
+  "report_type": "CBC|LFT|KFT|LIPID|THYROID|COAGULATION|IRON|DIABETES|COMPREHENSIVE|MIXED|UNKNOWN",
+  "patient_name": null,
+  "patient_age": null,
+  "patient_gender": null,
+  "lab_values": [
+    {{"raw_name": "Hemoglobin", "value": 6.8, "unit": "g/dL", "ref_low": 12.0, "ref_high": 15.5, "flag": "L"}},
+    {{"raw_name": "WBC", "value": 7.5, "unit": "x10\u00b3/\u03bcL", "ref_low": 4.0, "ref_high": 11.0, "flag": null}}
+  ]
+}}
 
-══════════════════════════════════════════
-MANDATORY EXTRACTION RULES
-══════════════════════════════════════════
+CORE RULES:
+1. value = patient's RESULT only — the first standalone number immediately after the parameter name.
+2. ref_low / ref_high = reference range from the report. Null if absent.
+   Reference ranges appear as: "12.0-17.5" | "12.0 \u2013 17.5" | "(12.0-17.5)" | "12.0 to 17.5" | "Ref: 12-17"
+3. flag = abnormal marker as printed: H / L / HH / LL / HIGH / LOW / A / * / \u2191 / \u2193 / CRITICAL
+   (null if absent — do NOT infer the flag; only capture what is printed)
+4. Extract ALL parameters visible in the report, including non-CBC or unknown test names.
+5. Handles any panel: CBC, LFT, KFT, Lipid, Thyroid, Coagulation, Iron, Electrolytes, HbA1c, etc.
 
-1. PATIENT RESULT vs REFERENCE RANGE
-   - Patient result = the column labeled "Result", "Value", "Patient Result", "Observed",
-     or the FIRST numeric column after the parameter name.
-   - Reference range = columns labeled "Reference Range", "Normal Range", "Ref Range",
-     "Biological Reference Interval", or the format "X.X - Y.Y" / "X.X–Y.Y".
-   - NEVER extract reference range values as the patient result.
-   - If BOTH appear in same row: result is the patient value; capture ref_low/ref_high separately.
+UNIT & SCALE RULES:
+6. OCR character corrections inside numbers: O\u21920, l\u21921, I\u21921, S\u21925 (e.g. "l2.5"\u219212.5, "O.9"\u21920.9)
+7. European decimal comma: "6,8"\u21926.8; thousands separator: "1.234,5"\u21921234.5
+8. Indian lakh notation: "1.5 lakh"\u2192150000; "10,000"\u219210000
+9. WBC/Platelets in x10\u00b3 format: keep as printed (e.g. 7.5 not 7500)
 
-2. INCLUDE EVERYTHING
-   - Extract ALL numeric test results. Do NOT filter by what you know.
-   - Include parameters you don't recognize — extract them with their raw_name.
-   - Do NOT skip a value because it looks normal or unimportant.
+OCR / IMAGE REPORT RULES (applies when text is garbled or table columns are merged):
+10. Each parameter line in OCR output typically follows this order:
+      [Parameter Name] [Patient Value] [Unit] [Reference Range] [Flag]
+    Example: "Haemoglobin 11.2 g/dL 13.0-17.0 L"
+    Another: "S. Creatinine 0.9 mg/dL (0.7-1.3)"
+11. When column structure is broken or text is merged on one line:
+    - Parameter name = word(s) / abbreviation before the first number
+    - Patient value  = FIRST numeric token after the parameter name
+    - Reference range = a paired number pattern like "12.5-17.0" or "(12-17)"
+    - Flag = a letter/symbol at end of line: H, L, A, *, \u2191, \u2193, or word HIGH/LOW
+12. Disambiguating patient value vs. reference range:
+    - Patient value appears BEFORE any range notation (dash between two numbers, parentheses, "to", "Ref:")
+    - In a range "a-b", ref_low=a and ref_high=b (a < b always)
+    - If only one number is visible after the parameter name, treat it as the patient value (ref_low/high = null)
+13. Ignore: page headers, footers, lab name, doctor name, patient address, barcodes — only test results.
+14. Differential counts (Neutrophils %, Lymphocytes %): extract as percentage values, not absolute counts.
 
-3. REFERENCE RANGES IN REPORT
-   - When a reference range appears (e.g. "4.0 - 11.0", "13.0-17.0"), extract ref_low and ref_high.
-   - These are critical fallbacks when our database lacks a parameter.
-
-4. FLAGS
-   - Capture any flag printed next to or after the value:
-     H, L, HH, LL, HIGH, LOW, CRITICAL, A (abnormal), *, ↑, ↓, +, ++, +++
-   - If no flag printed: set flag to null (do NOT infer H/L yourself).
-
-5. OCR ERROR HANDLING
-   - "O" in a numeric context → likely "0"
-   - Decimal separators: "," in European format = ".", "." in Indian = thousands separator if >3 digits
-   - "1.5 lakh" → 150000, "2 lakh" → 200000
-   - Superscripts rendered flat: "4.5 x 10^3" = 4500 or keep as 4.5 based on unit context
-   - For WBC/Platelets with x10³ unit → value as printed (do not multiply by 1000)
-   - Stray characters from table borders: ignore single chars like |, —, /, _ adjacent to numbers
-
-6. DEMOGRAPHICS
-   - Extract patient_name, patient_age, patient_gender, report_date, lab_name if visible
-   - Do NOT infer gender from name
-
-7. REPORT TYPE
-   - Identify the primary test panel(s) present
-
-══════════════════════════════════════════
-RAW REPORT TEXT
-══════════════════════════════════════════
+REPORT:
 {text}
-
-══════════════════════════════════════════
-OUTPUT FORMAT
-══════════════════════════════════════════
-{format_instructions}
 """
 
 
@@ -597,15 +557,61 @@ DEFAULT_UNITS = {
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# JSON parsing helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _parse_llm_json(content: str) -> dict:
+    """
+    Robustly extract and parse JSON from LLM response.
+    Handles ```json ... ``` markdown wrappers and leading/trailing text.
+    """
+    content = content.strip()
+    # Strip markdown code fences
+    for fence in ("```json", "```"):
+        if fence in content:
+            parts = content.split(fence)
+            # Find the part after the opening fence that contains a JSON object
+            for part in parts[1:]:
+                candidate = part.split("```")[0].strip()
+                if candidate.startswith("{"):
+                    content = candidate
+                    break
+    # Find the outermost JSON object
+    start = content.find("{")
+    end = content.rfind("}") + 1
+    if start < 0 or end <= start:
+        raise ValueError("No JSON object found in LLM response")
+    return json.loads(content[start:end])
+
+
+def _call_llm_json(prompt: str, primary_llm, fallback_llm) -> dict:
+    """
+    Call LLM and parse JSON response. Tries primary then fallback.
+    Returns parsed dict or raises on total failure.
+    """
+    for i, llm in enumerate([primary_llm, fallback_llm]):
+        label = "fast" if i == 0 else "quality"
+        try:
+            resp = llm.invoke(prompt)
+            content = resp.content if hasattr(resp, "content") else str(resp)
+            return _parse_llm_json(content)
+        except json.JSONDecodeError as e:
+            logger.warning(f"extract_parameters: {label} model JSON parse failed: {e}")
+        except Exception as e:
+            logger.warning(f"extract_parameters: {label} model call failed: {e}")
+    raise RuntimeError("All LLM models failed for extraction")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main node
 # ─────────────────────────────────────────────────────────────────────────────
 
 def extract_parameters_node(state):
     """
     Universal extraction node.
-    Extracts ALL lab parameters from any blood report type.
-    Maps raw names to canonical names via alias dictionary.
-    Preserves report-embedded reference ranges for validation fallback.
+    Uses 8b fast model (20k TPM) as primary — adequate for JSON extraction.
+    Falls back to 70b quality model on failure.
+    Direct JSON parsing — no PydanticOutputParser overhead (~700 token saving).
     """
     text = state.raw_text or ""
     if not text.strip():
@@ -614,98 +620,93 @@ def extract_parameters_node(state):
             "errors": state.errors + ["No text to extract from."],
         }
 
-    from langchain_core.output_parsers import PydanticOutputParser
-    parser = PydanticOutputParser(pydantic_object=UniversalExtractionOutput)
+    prompt = _EXTRACTION_PROMPT.format(text=text)
 
-    prompt = _EXTRACTION_PROMPT.format(
-        text=text,
-        format_instructions=parser.get_format_instructions(),
-    )
+    # 8b: high TPM (20k/min), good at JSON extraction
+    # 70b: quality fallback
+    fast = get_fast_llm(max_tokens=2048)
+    quality = get_llm(max_tokens=2048)
 
-    def _invoke(llm):
-        raw_resp = llm.invoke(prompt)
-        return parser.invoke(raw_resp)
-
-    # Use quality model — accuracy is paramount for extraction
-    result = None
     try:
-        result = _invoke(get_llm())
-        logger.info(
-            f"extract_parameters: quality model succeeded — "
-            f"report_type={result.report_type}, "
-            f"{len(result.lab_values)} values extracted"
-        )
+        data = _call_llm_json(prompt, fast, quality)
     except Exception as e:
-        logger.warning(f"extract_parameters quality model failed: {e}. Trying fast model.")
-        try:
-            result = _invoke(get_fast_llm())
-            logger.info(
-                f"extract_parameters: fast model fallback succeeded — "
-                f"{len(result.lab_values)} values"
-            )
-        except Exception as e2:
-            logger.error(f"extract_parameters: all models failed: {e2}")
-            return {
-                "extracted_params": {},
-                "errors": state.errors + [f"LLM extraction failed: {e2}"],
-            }
+        logger.error(f"extract_parameters: all models failed: {e}")
+        return {
+            "extracted_params": {},
+            "errors": state.errors + [f"LLM extraction failed: {e}"],
+        }
+
+    report_type = str(data.get("report_type", "UNKNOWN")).upper()
+    lab_values = data.get("lab_values", [])
+    if not isinstance(lab_values, list):
+        lab_values = []
+
+    logger.info(
+        f"extract_parameters: LLM returned {len(lab_values)} values, "
+        f"report_type={report_type}"
+    )
 
     # ── Build extracted_params dict ──────────────────────────────────────────
     extracted: dict = {}
-    seen_canonical: dict = {}  # canonical_name → index, for dedup
 
-    for lv in result.lab_values:
-        raw_val = _parse_float(lv.value)
-        if raw_val is None:
-            logger.debug(f"extract_parameters: skipping '{lv.raw_name}' — value not parseable")
+    for lv in lab_values:
+        if not isinstance(lv, dict):
             continue
 
-        canonical = _canonicalize(lv.raw_name)
+        raw_name = str(lv.get("raw_name") or "").strip()
+        if not raw_name:
+            continue
 
-        # Dedup: if same canonical already seen, keep the one with better metadata
-        if canonical in seen_canonical:
+        raw_val = _parse_float(lv.get("value"))
+        if raw_val is None:
+            logger.debug(f"extract_parameters: skipping '{raw_name}' — unparseable value")
+            continue
+
+        canonical = _canonicalize(raw_name)
+
+        # Dedup: keep entry with more metadata
+        if canonical in extracted:
             existing = extracted[canonical]
-            # Prefer entry that has ref ranges or flag
-            has_meta = lv.ref_low is not None or lv.flag is not None
-            existing_meta = existing.get("report_ref_low") is not None or existing.get("report_flag") is not None
+            has_meta = lv.get("ref_low") is not None or lv.get("flag")
+            existing_meta = existing.get("report_ref_low") is not None or existing.get("report_flag")
             if not has_meta and existing_meta:
-                continue  # keep existing
+                continue
 
-        unit = lv.unit or DEFAULT_UNITS.get(canonical)
-        ref_low = _parse_float(lv.ref_low)
-        ref_high = _parse_float(lv.ref_high)
+        unit = lv.get("unit") or DEFAULT_UNITS.get(canonical)
+        ref_low = _parse_float(lv.get("ref_low"))
+        ref_high = _parse_float(lv.get("ref_high"))
+        flag = lv.get("flag")
+        if flag:
+            flag = str(flag).strip() or None
 
         extracted[canonical] = {
-            "raw_name": lv.raw_name,
+            "raw_name": raw_name,
             "value": raw_val,
             "unit": unit,
-            "report_ref_low": ref_low,    # from report's own reference column
+            "report_ref_low": ref_low,
             "report_ref_high": ref_high,
-            "report_flag": lv.flag,       # as printed in report (H/L/etc.)
-            "scale_note": f"Universal extraction — {result.report_type}",
+            "report_flag": flag,
+            "scale_note": f"Universal extraction — {report_type}",
         }
-        seen_canonical[canonical] = True
 
     # ── Patient info ─────────────────────────────────────────────────────────
     patient_info = {}
-    if result.patient_name:
-        patient_info["Name"] = result.patient_name
-    if result.patient_age:
-        patient_info["Age"] = str(result.patient_age)
-    if result.patient_gender:
-        patient_info["Gender"] = result.patient_gender
-    if result.report_date:
-        patient_info["ReportDate"] = result.report_date
-    if result.lab_name:
-        patient_info["LabName"] = result.lab_name
+    for src_key, dst_key in [
+        ("patient_name", "Name"), ("patient_age", "Age"),
+        ("patient_gender", "Gender"), ("report_date", "ReportDate"),
+        ("lab_name", "LabName"),
+    ]:
+        val = data.get(src_key)
+        if val:
+            patient_info[dst_key] = str(val)
 
     logger.info(
-        f"extract_parameters: {len(extracted)} canonical params built, "
-        f"report_type={result.report_type}"
+        f"extract_parameters: {len(extracted)} canonical params, "
+        f"report_type={report_type}"
     )
 
     return {
         "extracted_params": extracted,
         "patient_info": patient_info,
-        "report_type": result.report_type,
+        "report_type": report_type,
     }
