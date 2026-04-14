@@ -43,12 +43,18 @@ PARAM_ALIASES: dict[str, str] = {
     "red cell count": "Total RBC count", "erythrocyte count": "Total RBC count",
     "erythrocytes": "Total RBC count", "red blood corpuscles": "Total RBC count",
     "rbc (total)": "Total RBC count",
+    # Indian lab dot-abbreviations for RBC (T.R.B.C / TRB.C on printed reports)
+    "trbc": "Total RBC count", "t.r.b.c": "Total RBC count", "trb.c": "Total RBC count",
+    "t r b c": "Total RBC count", "t.r.b.c.": "Total RBC count",
 
     # PCV / HCT
     "pcv": "Packed Cell Volume", "hct": "Packed Cell Volume",
     "hematocrit": "Packed Cell Volume", "haematocrit": "Packed Cell Volume",
     "packed cell volume": "Packed Cell Volume", "packed cell vol": "Packed Cell Volume",
     "packed cell volume (pcv)": "Packed Cell Volume",
+    # OCR corruptions of PCV (P→p, C→e/c, V→Y common Tesseract errors)
+    "pey": "Packed Cell Volume", "pcv%": "Packed Cell Volume", "p.c.v": "Packed Cell Volume",
+    "pev": "Packed Cell Volume", "p c v": "Packed Cell Volume",
 
     # MCV
     "mcv": "MCV", "mean corpuscular volume": "MCV", "mean cell volume": "MCV",
@@ -76,6 +82,8 @@ PARAM_ALIASES: dict[str, str] = {
     "white blood cell count": "Total WBC count", "white blood cells": "Total WBC count",
     "white cell count": "Total WBC count", "wbc count": "Total WBC count",
     "total wbc (tlc)": "Total WBC count",
+    # Indian lab dot-abbreviations (e.g. T.W.B.C on printed reports)
+    "t.w.b.c": "Total WBC count", "t w b c": "Total WBC count", "t.w.b.c.": "Total WBC count",
 
     # Platelets
     "platelets": "Platelet Count", "platelet count": "Platelet Count",
@@ -431,6 +439,11 @@ def _canonicalize(raw_name: str) -> str:
     cleaned = " ".join(cleaned.split())
     if cleaned in PARAM_ALIASES:
         return PARAM_ALIASES[cleaned]
+
+    # 2b. Try condensed (no spaces) — catches "t w b c" → "twbc"
+    condensed = cleaned.replace(" ", "")
+    if condensed in PARAM_ALIASES:
+        return PARAM_ALIASES[condensed]
 
     # 3. Partial / contains match (longest match wins)
     best = None

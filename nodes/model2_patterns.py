@@ -75,6 +75,14 @@ def model2_patterns_node(state):
         - NEVER mix percentages (%) with absolute counts.
         - Cytopenias: diagnose ONLY using absolute counts or explicit LOW tags.
 
+        4. ANTI-MISDIAGNOSIS RULES (NON-NEGOTIABLE)
+        - Thrombocytopenia: ONLY when the parameter named "Platelet Count" or "PLT" is LOW.
+          Low RBC / Low Hemoglobin / Low Hematocrit are ANEMIA — NEVER Thrombocytopenia.
+        - Lymphopenia: ONLY when "Absolute Lymphocytes" (absolute count) is LOW.
+          Low Monocytes = Monocytopenia. Lymphocytes % 20-45% = NORMAL, not Lymphopenia.
+        - If a parameter name is unrecognised or ambiguous, DO NOT use it to infer a diagnosis.
+        - Do NOT rename parameters in rationale — use the exact name provided.
+
         ====================
         HAEMATOLOGY PATTERNS (CBC)
         ====================

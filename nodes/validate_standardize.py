@@ -27,6 +27,21 @@ SCALE_RULES = {
     "Absolute Basophils": {"threshold": 100, "multiplier": 1000},
 }
 
+# Parameters where OCR drops decimal point, inflating value 10x
+# e.g. RBC 4.0 mill/cumm printed as "40", ref "4.5-6.5" printed as "45-65"
+SCALE_DOWN_RULES = {
+    "Total RBC count": {"threshold": 10.0, "divisor": 10.0},
+}
+
+# Unit conversions when extracted unit differs from DB unit
+# key: (canonical_param, extracted_unit_lower) → (multiply_by, db_unit)
+UNIT_CONVERSIONS = {
+    ("Total T3", "ng/ml"):  (100.0,  "ng/dL"),   # 1 ng/mL = 100 ng/dL
+    ("Total T3", "nmol/l"): (65.1,   "ng/dL"),   # 1 nmol/L = 65.1 ng/dL
+    ("Free T3",  "pg/ml"):  (100.0,  "pg/dL"),
+    ("Total T4", "ng/ml"):  (0.1,    "ug/dL"),   # 1 ng/mL = 0.1 µg/dL (rare but seen)
+}
+
 _GENDER_KEY_MAP = {
     "male": "adult_male", "m": "adult_male",
     "female": "adult_female", "f": "adult_female",
@@ -45,10 +60,27 @@ def normalize_numeric(value):
 
 def normalize_scale(param, value):
     rule = SCALE_RULES.get(param)
-    if not rule:
-        return value
-    if value < rule["threshold"]:
+    if rule and value < rule["threshold"]:
         return value * rule["multiplier"]
+    down = SCALE_DOWN_RULES.get(param)
+    if down and value > down["threshold"]:
+        # Only divide if result lands in plausible range (avoid dividing genuinely high values)
+        candidate = value / down["divisor"]
+        if candidate <= down["threshold"] * 2:
+            return candidate
+    return value
+
+
+def apply_unit_conversion(param, raw_unit, value):
+    """Convert value to DB unit when extracted unit differs from curated DB unit."""
+    if not raw_unit:
+        return value
+    key = (param, raw_unit.lower().replace(" ", ""))
+    conversion = UNIT_CONVERSIONS.get(key)
+    if conversion:
+        factor, _ = conversion
+        logger.debug(f"unit_conversion: {param} {value} {raw_unit} × {factor}")
+        return value * factor
     return value
 
 
@@ -109,6 +141,9 @@ def validate_and_standardize(state):
 
         # Scale correction (e.g. WBC reported as 7.5 instead of 7500)
         value = normalize_scale(param, value)
+
+        # Unit conversion (e.g. T3 in ng/mL when DB uses ng/dL)
+        value = apply_unit_conversion(param, raw_unit, value)
 
         # ── Priority 1: curated reference database ───────────────────────────
         if param in ranges:
