@@ -22,6 +22,12 @@ from sentence_transformers import SentenceTransformer; \
 SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2'); \
 print('Embedding model cached.')"
 
+# After model is baked in, disable ALL HuggingFace network calls at runtime.
+# This eliminates the 10+ HTTP HEAD requests that caused 504 on Render.
+ENV HF_HUB_OFFLINE=1 \
+    TRANSFORMERS_OFFLINE=1 \
+    SENTENCE_TRANSFORMERS_HOME=/root/.cache/torch/sentence_transformers
+
 # Copy application code (after deps — keeps layer cache valid on code-only changes)
 COPY . .
 

@@ -26,6 +26,13 @@ FAISS_INDEX_DIR = os.getenv("FAISS_INDEX_DIR", "faiss_index")
 CHAT_HISTORY_MAX_TURNS = 10   # keep last N turns per session
 SESSION_TTL_SECONDS = 3600    # 1 hour — sessions older than this are purged
 
+# ── Singleton model instances (loaded once, reused across requests) ───────────
+_embeddings_instance: "HuggingFaceEmbeddings | None" = None
+_embeddings_lock = threading.Lock()
+
+_llm_instance: "ChatGroq | None" = None
+_llm_lock = threading.Lock()
+
 # ── In-memory stores (keyed by session/namespace) ─────────────────────────────
 _faiss_stores: Dict[str, FAISS] = {}
 _faiss_store_lock = threading.Lock()
@@ -102,8 +109,35 @@ def _verify_index_hash(index_path: str) -> bool:
     return current == stored
 
 
-def get_embeddings():
-    return HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME)
+def get_embeddings() -> "HuggingFaceEmbeddings":
+    """Return cached embedding model, creating it once on first call."""
+    global _embeddings_instance
+    if _embeddings_instance is None:
+        with _embeddings_lock:
+            if _embeddings_instance is None:
+                logger.info("Loading HuggingFace embedding model (once)...")
+                _embeddings_instance = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME)
+                logger.info("Embedding model loaded.")
+    return _embeddings_instance
+
+
+def get_llm() -> "ChatGroq":
+    """Return cached Groq LLM, creating it once on first call."""
+    global _llm_instance
+    if _llm_instance is None:
+        with _llm_lock:
+            if _llm_instance is None:
+                groq_api_key = os.environ.get("GROQ_API_KEY")
+                if not groq_api_key:
+                    raise EnvironmentError("GROQ_API_KEY not set")
+                _llm_instance = ChatGroq(
+                    model="llama-3.3-70b-versatile",
+                    temperature=0,
+                    max_tokens=2048,
+                    timeout=90,
+                    api_key=groq_api_key,
+                )
+    return _llm_instance
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -281,17 +315,7 @@ User Question: {question}
 Answer:""",
         )
 
-        groq_api_key = os.environ.get("GROQ_API_KEY")
-        if not groq_api_key:
-            raise EnvironmentError("GROQ_API_KEY not set")
-
-        llm = ChatGroq(
-            model="llama-3.3-70b-versatile",
-            temperature=0,
-            max_tokens=2048,
-            timeout=90,
-            api_key=groq_api_key,
-        )
+        llm = get_llm()
 
         result = (prompt | llm).invoke({
             "context": context,

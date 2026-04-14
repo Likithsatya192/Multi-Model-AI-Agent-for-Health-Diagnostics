@@ -14,7 +14,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from graph.run_pipeline import run_full_pipeline
-from nodes.rag_node import rag_retrieve_and_answer, store_report_state
+from nodes.rag_node import rag_retrieve_and_answer, store_report_state, get_embeddings, get_llm
 
 # ── Logging ──────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -32,6 +32,10 @@ async def lifespan(app: FastAPI):
     if missing:
         raise EnvironmentError(f"Missing required env vars at startup: {missing}")
     logger.info('"Server startup OK — all required env vars present"')
+    # Warm up singletons so first request does not pay model-load cost
+    await asyncio.to_thread(get_embeddings)
+    await asyncio.to_thread(get_llm)
+    logger.info('"Model warm-up complete"')
     yield
     logger.info('"Server shutting down"')
 

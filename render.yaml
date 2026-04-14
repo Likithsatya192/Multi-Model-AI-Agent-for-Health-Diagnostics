@@ -12,5 +12,7 @@ services:
         sync: false          # Set manually in Render dashboard → Environment
       - key: ALLOWED_ORIGINS
         sync: false          # e.g. https://your-app.vercel.app
+      - key: HF_TOKEN
+        sync: false          # HuggingFace token — higher rate limits during build
       - key: PORT
         value: "8000"
