@@ -89,6 +89,20 @@ def _validate_upload(file: UploadFile, size: int):
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
+@app.get("/")
+def root():
+    return {
+        "name": "Health AI API",
+        "version": "1.0.0",
+        "status": "running",
+        "endpoints": {
+            "analyze": "POST /analyze",
+            "chat": "POST /chat",
+            "health": "GET /health",
+        }
+    }
+
+
 @app.post("/analyze")
 @limiter.limit("10/minute")
 async def analyze_report(
