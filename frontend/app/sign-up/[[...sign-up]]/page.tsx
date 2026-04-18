@@ -61,6 +61,7 @@ export default function SignUpPage() {
               dividerLine: "!bg-slate-200",
               dividerText: "!text-slate-400 !text-xs",
               formFieldLabel: "!text-slate-500 !text-xs !font-medium !tracking-wide",
+              formFieldAction: "!hidden",
               formFieldInput: "!bg-slate-50 !border !border-slate-200 !text-slate-900 !rounded-xl focus:!border-[#0077B6]/50 focus:!ring-1 focus:!ring-[#00B4D8]/20 !transition-all",
               formButtonPrimary: "!bg-gradient-to-r !from-[#00B4D8] !to-[#0077B6] !text-white !font-semibold !rounded-xl !shadow-[0_4px_20px_rgba(0,119,182,0.25)] hover:!shadow-[0_8px_28px_rgba(0,119,182,0.35)] hover:!brightness-110 !transition-all",
               footerActionText: "!text-slate-500",
