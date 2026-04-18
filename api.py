@@ -103,6 +103,11 @@ def root():
     }
 
 
+@app.head("/")
+def root_head():
+    return {}
+
+
 @app.post("/analyze")
 @limiter.limit("10/minute")
 async def analyze_report(
