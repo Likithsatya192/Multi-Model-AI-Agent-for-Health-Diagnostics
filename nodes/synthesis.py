@@ -1,5 +1,6 @@
 import logging
-from utils.llm_utils import get_llm, get_fallback_llm
+from langchain_core.messages import SystemMessage, HumanMessage
+from utils.llm_utils import get_llm, get_fallback_llm, MEDICAL_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -128,9 +129,16 @@ REPORT WRITING RULES (STRICT)
 12. Do NOT make definitive diagnoses.
 """
 
+    # Prepend medical system prompt so the narrative report is written
+    # from the perspective of a clinical diagnostic specialist.
+    messages = [
+        SystemMessage(content=MEDICAL_SYSTEM_PROMPT),
+        HumanMessage(content=prompt),
+    ]
+
     try:
         llm = get_llm(max_tokens=900)
-        response = llm.invoke(prompt)
+        response = llm.invoke(messages)
         report = response.content.strip() if hasattr(response, "content") else str(response).strip()
         logger.info(f"synthesis: report generated, urgency={urgency}, risk={risk_score}")
         return {"synthesis_report": report + _DISCLAIMER}
@@ -139,7 +147,7 @@ REPORT WRITING RULES (STRICT)
         logger.warning(f"synthesis primary model failed: {e}. Trying fallback.")
         try:
             llm = get_fallback_llm(max_tokens=900)
-            response = llm.invoke(prompt)
+            response = llm.invoke(messages)
             report = response.content.strip() if hasattr(response, "content") else str(response).strip()
             return {"synthesis_report": report + _DISCLAIMER}
         except Exception as e2:

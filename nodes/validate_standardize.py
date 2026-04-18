@@ -12,9 +12,78 @@ even if we don't have a curated range for it.
 """
 
 import logging
+import re
 from utils.reference_ranges import load_reference_ranges
 
 logger = logging.getLogger(__name__)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Age parsing
+# ─────────────────────────────────────────────────────────────────────────────
+
+_AGE_UNIT_MULT_YEARS = {
+    "day": 1 / 365.0, "days": 1 / 365.0, "d": 1 / 365.0,
+    "week": 7 / 365.0, "weeks": 7 / 365.0, "wk": 7 / 365.0, "wks": 7 / 365.0,
+    "month": 1 / 12.0, "months": 1 / 12.0, "mo": 1 / 12.0, "mos": 1 / 12.0, "m": 1 / 12.0,
+    "year": 1.0, "years": 1.0, "yr": 1.0, "yrs": 1.0, "y": 1.0,
+}
+
+
+def parse_age_to_years(age_str):
+    """
+    Parse a printed age string like '8 Month(s)', '45 Years', '2y 3m', '30'
+    into a float number of years. Returns None if unparseable.
+    """
+    if age_str is None:
+        return None
+    s = str(age_str).strip().lower()
+    if not s:
+        return None
+    # Strip parentheses noise: "8 Month(s)" → "8 month s"
+    s = s.replace("(", " ").replace(")", " ")
+    # Find all <number><unit?> pairs
+    tokens = re.findall(r"(\d+(?:\.\d+)?)\s*([a-z]+)?", s)
+    if not tokens:
+        return None
+    total_years = 0.0
+    matched_any_unit = False
+    for num_s, unit in tokens:
+        try:
+            num = float(num_s)
+        except ValueError:
+            continue
+        if unit:
+            # Strip trailing 's' etc. by trying both exact and singular forms
+            mult = _AGE_UNIT_MULT_YEARS.get(unit)
+            if mult is None and unit.endswith("s"):
+                mult = _AGE_UNIT_MULT_YEARS.get(unit[:-1])
+            if mult is not None:
+                total_years += num * mult
+                matched_any_unit = True
+                continue
+        # No unit — assume years only if it's the lone token
+        if not matched_any_unit and len(tokens) == 1:
+            total_years = num
+            matched_any_unit = True
+    return total_years if matched_any_unit else None
+
+
+def age_bucket(age_years):
+    """Map a numeric age (years) to a pediatric/adult bucket key."""
+    if age_years is None:
+        return None
+    if age_years < 0.08:       # < ~28 days
+        return "newborn"
+    if age_years < 1.0:
+        return "infant"
+    if age_years < 6.0:
+        return "toddler"
+    if age_years < 13.0:
+        return "child"
+    if age_years < 18.0:
+        return "adolescent"
+    return "adult"
 
 # Parameters needing scale correction (some labs report in different units)
 SCALE_RULES = {
@@ -84,17 +153,36 @@ def apply_unit_conversion(param, raw_unit, value):
     return value
 
 
-def resolve_reference(ref, gender: str = None):
-    """Resolve gender-adjusted or neutral reference range from our database."""
+def resolve_reference(ref, gender: str = None, age_bucket_key: str = None):
+    """
+    Resolve a reference range from our database.
+    Priority:
+      1. Pediatric age bucket (newborn/infant/toddler/child/adolescent) when
+         patient is non-adult — this MUST beat adult-gender ranges to avoid
+         flagging infants against adult thresholds.
+      2. Gender-adjusted adult range (adult_male / adult_female).
+      3. Generic adult / neutral range.
+    """
     if not isinstance(ref, dict):
         return None, None
     if "low" in ref and "high" in ref:
         return ref["low"], ref["high"]
+
+    # Pediatric first — for anyone under 18
+    pediatric = age_bucket_key and age_bucket_key != "adult"
+    if pediatric:
+        if age_bucket_key in ref and isinstance(ref[age_bucket_key], dict):
+            return ref[age_bucket_key].get("low"), ref[age_bucket_key].get("high")
+        # No pediatric bucket for this param → do NOT apply adult range.
+        # Returning (None, None) lets caller fall back to the report-embedded range
+        # (priority 2) instead of misflagging the child against adult thresholds.
+        return None, None
+
     if gender:
         gender_key = _GENDER_KEY_MAP.get(gender.lower().strip())
         if gender_key and gender_key in ref and isinstance(ref[gender_key], dict):
             return ref[gender_key].get("low"), ref[gender_key].get("high")
-    for key in ("adult_male", "adult_female", "adult"):
+    for key in ("adult", "adult_male", "adult_female"):
         if key in ref and isinstance(ref[key], dict):
             return ref[key].get("low"), ref[key].get("high")
     return None, None
@@ -118,9 +206,17 @@ def validate_and_standardize(state):
     extracted = getattr(state, "extracted_params", {}) or {}
     patient_info = getattr(state, "patient_info", {}) or {}
     gender = patient_info.get("Gender")
+    age_raw = patient_info.get("Age")
+    age_years = parse_age_to_years(age_raw)
+    age_key = age_bucket(age_years)
 
     if gender:
         logger.info(f"validate: using gender-adjusted ranges for gender='{gender}'")
+    if age_key:
+        logger.info(
+            f"validate: age='{age_raw}' → {age_years:.2f}y → bucket='{age_key}' "
+            f"(pediatric ranges applied when available)"
+        )
 
     validated_count = 0
     report_range_count = 0
@@ -148,7 +244,7 @@ def validate_and_standardize(state):
         # ── Priority 1: curated reference database ───────────────────────────
         if param in ranges:
             ref_entry = ranges[param].get("reference")
-            low, high = resolve_reference(ref_entry, gender=gender)
+            low, high = resolve_reference(ref_entry, gender=gender, age_bucket_key=age_key)
 
             if low is not None and high is not None:
                 flag = determine_flag(value, low, high)

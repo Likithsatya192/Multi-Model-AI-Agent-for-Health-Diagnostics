@@ -3,14 +3,24 @@
     "units": ["g/dL", "g/L"],
     "reference": {
       "adult_male":   { "low": 13.0, "high": 17.5 },
-      "adult_female": { "low": 12.0, "high": 15.5 }
+      "adult_female": { "low": 12.0, "high": 15.5 },
+      "newborn":      { "low": 14.0, "high": 24.0 },
+      "infant":       { "low": 10.0, "high": 13.5 },
+      "toddler":      { "low": 10.5, "high": 14.0 },
+      "child":        { "low": 11.5, "high": 15.5 },
+      "adolescent":   { "low": 12.0, "high": 16.0 }
     }
   },
   "Total RBC count": {
     "units": ["mill/cumm", "x10^6/uL", "x10^12/L"],
     "reference": {
       "adult_male":   { "low": 4.5, "high": 5.9 },
-      "adult_female": { "low": 4.1, "high": 5.1 }
+      "adult_female": { "low": 4.1, "high": 5.1 },
+      "newborn":      { "low": 4.1, "high": 6.1 },
+      "infant":       { "low": 3.8, "high": 5.2 },
+      "toddler":      { "low": 3.9, "high": 5.3 },
+      "child":        { "low": 4.0, "high": 5.2 },
+      "adolescent":   { "low": 4.1, "high": 5.5 }
     }
   },
   "Packed Cell Volume": {
@@ -18,20 +28,46 @@
     "units": ["%", "L/L"],
     "reference": {
       "adult_male":   { "low": 40, "high": 52 },
-      "adult_female": { "low": 36, "high": 48 }
+      "adult_female": { "low": 36, "high": 48 },
+      "newborn":      { "low": 44, "high": 64 },
+      "infant":       { "low": 29, "high": 41 },
+      "toddler":      { "low": 32, "high": 40 },
+      "child":        { "low": 33, "high": 43 },
+      "adolescent":   { "low": 35, "high": 47 }
     }
   },
   "MCV": {
     "units": ["fL"],
-    "reference": { "low": 80, "high": 100 }
+    "reference": {
+      "adult":        { "low": 80, "high": 100 },
+      "newborn":      { "low": 95, "high": 121 },
+      "infant":       { "low": 70, "high": 86 },
+      "toddler":      { "low": 75, "high": 87 },
+      "child":        { "low": 77, "high": 95 },
+      "adolescent":   { "low": 78, "high": 98 }
+    }
   },
   "MCH": {
     "units": ["pg"],
-    "reference": { "low": 27, "high": 33 }
+    "reference": {
+      "adult":        { "low": 27, "high": 33 },
+      "newborn":      { "low": 31, "high": 37 },
+      "infant":       { "low": 23, "high": 31 },
+      "toddler":      { "low": 24, "high": 30 },
+      "child":        { "low": 25, "high": 33 },
+      "adolescent":   { "low": 26, "high": 34 }
+    }
   },
   "MCHC": {
     "units": ["g/dL", "g/L"],
-    "reference": { "low": 32.0, "high": 36.0 }
+    "reference": {
+      "adult":        { "low": 32.0, "high": 36.0 },
+      "newborn":      { "low": 29.0, "high": 37.0 },
+      "infant":       { "low": 30.0, "high": 36.0 },
+      "toddler":      { "low": 31.0, "high": 37.0 },
+      "child":        { "low": 31.0, "high": 37.0 },
+      "adolescent":   { "low": 31.0, "high": 37.0 }
+    }
   },
   "RDW": {
     "units": ["%"],
@@ -40,7 +76,14 @@
   "Total WBC count": {
     "aliases": ["TLC", "Leukocytes"],
     "units": ["cumm", "/uL", "x10^9/L"],
-    "reference": { "low": 4000, "high": 11000 }
+    "reference": {
+      "adult":       { "low": 4000, "high": 11000 },
+      "newborn":     { "low": 9000, "high": 30000 },
+      "infant":      { "low": 6000, "high": 17500 },
+      "toddler":     { "low": 6000, "high": 17000 },
+      "child":       { "low": 5000, "high": 14500 },
+      "adolescent":  { "low": 4500, "high": 13500 }
+    }
   },
   "Platelet Count": {
     "aliases": ["Platelets", "PLT"],
@@ -49,11 +92,25 @@
   },
   "Neutrophils": {
     "units": ["%"],
-    "reference": { "low": 40, "high": 75 }
+    "reference": {
+      "adult":       { "low": 40, "high": 75 },
+      "newborn":     { "low": 40, "high": 80 },
+      "infant":      { "low": 15, "high": 45 },
+      "toddler":     { "low": 20, "high": 50 },
+      "child":       { "low": 30, "high": 60 },
+      "adolescent":  { "low": 35, "high": 70 }
+    }
   },
   "Lymphocytes": {
     "units": ["%"],
-    "reference": { "low": 20, "high": 45 }
+    "reference": {
+      "adult":       { "low": 20, "high": 45 },
+      "newborn":     { "low": 20, "high": 40 },
+      "infant":      { "low": 45, "high": 75 },
+      "toddler":     { "low": 40, "high": 70 },
+      "child":       { "low": 30, "high": 60 },
+      "adolescent":  { "low": 25, "high": 50 }
+    }
   },
   "Monocytes": {
     "units": ["%"],

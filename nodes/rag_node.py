@@ -10,12 +10,13 @@ from typing import Any, Dict, List, Tuple
 from dotenv import load_dotenv
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
-from langchain_core.prompts import PromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_groq import ChatGroq
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from graph.graph_state import ReportState
+from utils.llm_utils import MEDICAL_SYSTEM_PROMPT, MEDICAL_MODEL
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -122,7 +123,12 @@ def get_embeddings() -> "HuggingFaceEmbeddings":
 
 
 def get_llm() -> "ChatGroq":
-    """Return cached Groq LLM, creating it once on first call."""
+    """
+    Return cached Groq LLM, creating it once on first call.
+    Uses llama-3.3-70b-versatile (Groq's most capable available model for medical
+    reasoning) and the primary GROQ_API_KEY — secondary key is reserved
+    for extraction/pattern nodes in utils.llm_utils.
+    """
     global _llm_instance
     if _llm_instance is None:
         with _llm_lock:
@@ -131,7 +137,7 @@ def get_llm() -> "ChatGroq":
                 if not groq_api_key:
                     raise EnvironmentError("GROQ_API_KEY not set")
                 _llm_instance = ChatGroq(
-                    model="llama-3.3-70b-versatile",
+                    model=MEDICAL_MODEL,
                     temperature=0,
                     max_tokens=2048,
                     timeout=90,
@@ -284,24 +290,27 @@ def rag_retrieve_and_answer(
 
             report_context_str = json.dumps(ctx_data, indent=2, default=str)
 
-        prompt = PromptTemplate(
-            input_variables=["context", "question", "history", "report_context"],
-            template="""You are a dedicated AI medical assistant analyzing a patient's uploaded blood report.
-Your sole purpose is to explain findings, clarify medical terms, and answer questions about THIS specific report.
+        # System message carries the clinical-specialist persona (shared across
+        # all nodes) AND the RAG-specific scope / formatting rules. Human
+        # message carries the dynamic per-turn context.
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", MEDICAL_SYSTEM_PROMPT + """
+
+You are now acting as a dedicated AI medical assistant analyzing a patient's uploaded blood report.
+Your sole purpose here is to explain findings, clarify medical terms, and answer questions about THIS specific report.
 
 STRICT SCOPE RULE:
 If the user asks anything NOT related to this blood report (general topics, coding, life advice, etc.),
 respond EXACTLY with: "Please talk about only the uploaded blood report."
 
 For report-related questions:
-1. Use both the FULL Analysis State and Retrieved Text Context below.
+1. Use both the FULL Analysis State and Retrieved Text Context provided by the user.
 2. Be professional, empathetic, and clear.
 3. Use **bold** for key parameters. Use bullet points for clarity.
 4. Use ### Subheadings to structure longer answers.
 5. Never make definitive diagnoses. Always recommend consulting a doctor for medical decisions.
-6. If a critical value was found, remind the user to seek medical attention promptly.
-
-FULL Analysis State:
+6. If a critical value was found, remind the user to seek medical attention promptly."""),
+            ("human", """FULL Analysis State:
 {report_context}
 
 Retrieved Report Excerpts:
@@ -312,8 +321,8 @@ Conversation History:
 
 User Question: {question}
 
-Answer:""",
-        )
+Answer:"""),
+        ])
 
         llm = get_llm()
 

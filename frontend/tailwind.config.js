@@ -9,21 +9,21 @@ export default {
         extend: {
             colors: {
                 // Core surfaces — deep navy-black medical monitor palette
-                background:       "#07090f",   // near-black with blue tint
-                surface:          "#0f1623",   // deep navy surface
-                surfaceHighlight: "#1a2540",   // elevated surface
+                background:       "#CAF0F8",
+                surface:          "#F7FDFF",
+                surfaceHighlight: "#90E0EF",
 
                 // Brand — electric cyan (medical scanner)
-                primary:     "#0EA5E9",        // sky-500
-                primaryDark: "#0284C7",        // sky-600
-                primaryGlow: "#38BDF8",        // sky-400 (glow variant)
+                primary:     "#0077B6",
+                primaryDark: "#03045E",
+                primaryGlow: "#00B4D8",
 
                 // Accent — bioluminescent teal
-                accent:      "#06D6A0",        // teal-green (health)
-                accentDark:  "#059669",
+                accent:      "#00B4D8",
+                accentDark:  "#0077B6",
 
                 // Semantic
-                secondary: "#94A3B8",          // slate-400
+                secondary: "#64748B",
                 success:   "#22c55e",
                 error:     "#ef4444",
                 warning:   "#f59e0b",
@@ -132,11 +132,11 @@ export default {
             },
 
             boxShadow: {
-                'primary-sm': '0 2px 12px rgba(14,165,233,0.2)',
-                'primary-md': '0 4px 24px rgba(14,165,233,0.3)',
-                'primary-lg': '0 8px 40px rgba(14,165,233,0.35)',
-                'glow-sm':    '0 0 20px rgba(14,165,233,0.25)',
-                'glow-md':    '0 0 40px rgba(14,165,233,0.3)',
+                'primary-sm': '0 2px 12px rgba(0,119,182,0.18)',
+                'primary-md': '0 4px 24px rgba(0,119,182,0.26)',
+                'primary-lg': '0 8px 40px rgba(0,119,182,0.32)',
+                'glow-sm':    '0 0 20px rgba(0,180,216,0.2)',
+                'glow-md':    '0 0 40px rgba(0,180,216,0.26)',
                 'inner-glow': 'inset 0 1px 0 rgba(255,255,255,0.07)',
             },
 

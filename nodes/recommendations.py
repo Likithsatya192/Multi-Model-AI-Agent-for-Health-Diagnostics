@@ -1,7 +1,8 @@
 import logging
 from typing import List
 from pydantic import BaseModel, Field
-from utils.llm_utils import get_llm, get_fallback_llm
+from langchain_core.messages import SystemMessage, HumanMessage
+from utils.llm_utils import get_llm, get_fallback_llm, MEDICAL_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -126,9 +127,26 @@ Generate 4-7 recommendations, most critical first.
 {parser.get_format_instructions()}
 """
 
+    # Medical persona + strict JSON-only reinforcement. PydanticOutputParser
+    # below requires valid JSON; the base medical prompt can nudge the 70B
+    # model toward prose, so we override for this task.
+    recs_system = (
+        MEDICAL_SYSTEM_PROMPT
+        + "\n\n"
+        + "TASK-SPECIFIC OUTPUT RULES (override any conflicting guidance above):\n"
+        + "- Output must match the exact JSON schema given in the user message.\n"
+        + "- Do NOT add commentary or explanations outside the JSON object.\n"
+        + "- Your entire response must start with '{' and end with '}'.\n"
+        + "- Each recommendation's 'action' and 'reason' fields carry the prose — never put prose outside the JSON."
+    )
+    messages = [
+        SystemMessage(content=recs_system),
+        HumanMessage(content=prompt),
+    ]
+
     try:
         llm = get_llm(max_tokens=1000)
-        response = llm.invoke(prompt)
+        response = llm.invoke(messages)
         parsed = parser.invoke(response)
 
         # Flatten to list of strings for backward compatibility with frontend
@@ -140,10 +158,10 @@ Generate 4-7 recommendations, most critical first.
         return {"recommendations": rec_strings}
 
     except Exception as e:
-        logger.warning(f"recommendations primary model failed: {e}. Trying fallback.")
+        logger.exception(f"recommendations primary model failed: {type(e).__name__}: {e}. Trying fallback.")
         try:
             llm = get_fallback_llm(max_tokens=1000)
-            response = llm.invoke(prompt)
+            response = llm.invoke(messages)
             parsed = parser.invoke(response)
             rec_strings = [
                 f"[{r.priority.upper()}] {r.action} ({r.reason})"
@@ -151,7 +169,7 @@ Generate 4-7 recommendations, most critical first.
             ]
             return {"recommendations": rec_strings}
         except Exception as e2:
-            logger.error(f"recommendations: fallback also failed: {e2}")
+            logger.exception(f"recommendations: fallback also failed: {type(e2).__name__}: {e2}")
             return {
                 "recommendations": [],
                 "errors": errors + [f"Recommendations Node failed: {str(e2)}"],

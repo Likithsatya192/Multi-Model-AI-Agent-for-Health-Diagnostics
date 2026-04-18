@@ -33,3 +33,13 @@ next-env.d.ts
 *.njsproj
 *.sln
 *.sw?
+
+# Secrets — NEVER commit
+firebase_key.json
+*service_account*.json
+*_key.json
+*credentials*.json
+
+# Build cache
+tsconfig.tsbuildinfo
+*.tsbuildinfo

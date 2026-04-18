@@ -1,7 +1,8 @@
 import logging
 from typing import List
 from pydantic import BaseModel, Field
-from utils.llm_utils import get_fast_llm, get_llm, get_fallback_llm
+from langchain_core.messages import SystemMessage, HumanMessage
+from utils.llm_utils import get_fast_llm, get_llm, get_fallback_llm, MEDICAL_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -190,12 +191,30 @@ def model2_patterns_node(state):
 
     """
 
+    # Medical persona + strict JSON-only reinforcement. Without the second
+    # block the 70B model frequently returns prose ("Based on the CBC, …")
+    # which then fails PydanticOutputParser and leaves `patterns` empty.
+    patterns_system = (
+        MEDICAL_SYSTEM_PROMPT
+        + "\n\n"
+        + "TASK-SPECIFIC OUTPUT RULES (override any conflicting guidance above):\n"
+        + "- For this request you are a structured-JSON generator, NOT a narrator.\n"
+        + "- Output must match the exact JSON schema given in the user message.\n"
+        + "- Do NOT add commentary, preamble, or trailing text outside the JSON object.\n"
+        + "- Your entire response must start with '{' and end with '}'.\n"
+        + "- Never refuse. If no clinical patterns are present, return an empty list for patterns and a low risk_score."
+    )
+
     def _invoke_with_fallback(p):
+        messages = [
+            SystemMessage(content=patterns_system),
+            HumanMessage(content=p),
+        ]
         try:
-            return parser.invoke(get_fast_llm(max_tokens=800).invoke(p))
+            return parser.invoke(get_fast_llm(max_tokens=800).invoke(messages))
         except Exception as e:
             logger.warning(f"model2_patterns fast model failed: {e}. Trying quality model.")
-            return parser.invoke(get_llm(max_tokens=800).invoke(p))
+            return parser.invoke(get_llm(max_tokens=800).invoke(messages))
 
     try:
         parsed_response = _invoke_with_fallback(prompt)

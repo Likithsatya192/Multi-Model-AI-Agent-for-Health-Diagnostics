@@ -10,6 +10,8 @@ services:
     envVars:
       - key: GROQ_API_KEY
         sync: false          # Set manually in Render dashboard → Environment
+      - key: GROQ_API_KEY_2
+        sync: false          # Second Groq key — routes extraction/fallback calls away from primary key to avoid 429s
       - key: ALLOWED_ORIGINS
         sync: false          # e.g. https://your-app.vercel.app
       - key: HF_TOKEN

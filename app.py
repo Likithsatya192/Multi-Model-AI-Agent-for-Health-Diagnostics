@@ -6,12 +6,76 @@ import uuid
 import fitz  # PyMuPDF
 from PIL import Image
 from io import StringIO
+import requests
+import os
 
-from graph.run_pipeline import run_full_pipeline
-from graph.rag_pipeline import run_rag_pipeline
+# Backend URL — set BACKEND_URL env var or default to localhost
+BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8000").rstrip("/")
 
-# ... (rest of imports are fine, but ensure rag_pipeline is used) is a placeholder comment from previous edit.
-# We need to ensure the imports are actually valid python.
+# For local dev: fall back to direct pipeline calls if backend unreachable
+try:
+    from graph.run_pipeline import run_full_pipeline
+    from graph.rag_pipeline import run_rag_pipeline
+    LOCAL_FALLBACK = True
+except ImportError:
+    LOCAL_FALLBACK = False
+
+
+# Backend API Helpers
+def call_backend_analyze(file_bytes, filename, session_id=None):
+    """Call backend /analyze endpoint. Falls back to local if unavailable."""
+    try:
+        files = {"file": (filename, file_bytes)}
+        data = {"session_id": session_id} if session_id else {}
+        response = requests.post(f"{BACKEND_URL}/analyze", files=files, data=data, timeout=300)
+        response.raise_for_status()
+        return response.json()
+    except requests.RequestException as e:
+        if LOCAL_FALLBACK:
+            st.warning(f"Backend unavailable, using local pipeline. Error: {e}")
+            import tempfile
+            with tempfile.NamedTemporaryFile(delete=False, suffix=f".{filename.split('.')[-1]}") as tmp:
+                tmp.write(file_bytes)
+                tmp_path = tmp.name
+            result = run_full_pipeline(tmp_path)
+            import os
+            os.remove(tmp_path)
+            # Convert to dict for consistency
+            return {
+                "report_type": result.report_type or "UNKNOWN",
+                "risk_score": result.risk_assessment.get("score") if result.risk_assessment else 0,
+                "risk_rationale": result.risk_assessment.get("rationale") if result.risk_assessment else "",
+                "param_interpretation": result.param_interpretation,
+                "synthesis_report": result.synthesis_report,
+                "recommendations": result.recommendations,
+                "patterns": result.patterns,
+                "context_analysis": result.context_analysis,
+                "rag_collection_name": result.rag_collection_name,
+                "errors": result.errors,
+            }
+        else:
+            st.error(f"Backend error: {e}")
+            raise
+
+
+def call_backend_chat(question, collection_name, session_id=None):
+    """Call backend /chat endpoint. Falls back to local if unavailable."""
+    try:
+        payload = {
+            "question": question,
+            "collection_name": collection_name,
+            "session_id": session_id,
+        }
+        response = requests.post(f"{BACKEND_URL}/chat", json=payload, timeout=30)
+        response.raise_for_status()
+        return response.json()["answer"]
+    except requests.RequestException as e:
+        if LOCAL_FALLBACK:
+            st.warning(f"Backend unavailable, using local RAG. Error: {e}")
+            return run_rag_pipeline(question, collection_name, session_id)
+        else:
+            st.error(f"Backend error: {e}")
+            raise
 
 # Streamlit Config
 st.set_page_config(
@@ -47,30 +111,29 @@ with st.sidebar:
                     page = doc.load_page(0)  # number of page
                     pix = page.get_pixmap()
                     img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-                    st.image(img, caption="Page 1 Preview", use_container_width=True)
+                    st.image(img, caption="Page 1 Preview", width='stretch')
             else:
-                st.image(uploaded, caption="Uploaded Image", use_container_width=True)
+                st.image(uploaded, caption="Uploaded Image", width='stretch')
         except Exception as e:
             st.error(f"Could not detail preview: {e}")
 
 # Main Logic
 if uploaded:
-    # Save temp file
-    with tempfile.NamedTemporaryFile(delete=False, suffix=f".{uploaded.name.split('.')[-1]}") as tmp:
-        tmp.write(uploaded.read())
-        uploaded.seek(0)
-        file_path = tmp.name
-
     # Check if we need to re-run analysis
     # Condition: No result in session OR new file uploaded (name changed)
     if "analysis_result" not in st.session_state or st.session_state.get("last_uploaded_file") != uploaded.name:
         with st.status("Processing report… please wait", expanded=False) as status:
-            result = run_full_pipeline(file_path)
-            st.session_state.analysis_result = result
+            file_bytes = uploaded.read()
+            uploaded.seek(0)
+            session_id = st.session_state.get("session_id") or str(uuid.uuid4())
+            result_dict = call_backend_analyze(file_bytes, uploaded.name, session_id)
+            # Store dict directly — already compatible with all downstream access
+            st.session_state.analysis_result = result_dict
+            st.session_state.session_id = session_id
             st.session_state.last_uploaded_file = uploaded.name
             st.session_state.messages = [] # Clear chat history for new report
             status.update(label="Processing complete", state="complete")
-    
+
     # Retrieve result from session state
     result = st.session_state.analysis_result
 
@@ -120,9 +183,9 @@ if uploaded:
     st.header("🧠 Multi-Model AI Analysis")
 
     st.subheader("🧭 Parameter Analysis")
-    if result.param_interpretation:
+    if result.get("param_interpretation"):
         # Sort keys to keep similar items together or just alpha
-        params = sorted(result.param_interpretation.items())
+        params = sorted(result.get("param_interpretation", {}).items())
         
         # CSS for the custom cards
         st.markdown("""
@@ -228,17 +291,17 @@ if uploaded:
     
     with col1:
         st.subheader("Pattern Recognition")
-        if result.patterns:
-            for pat in result.patterns:
+        if result.get("patterns"):
+            for pat in result.get("patterns", []):
                 st.write(f"- 🔍 **{pat}**")
         else:
             st.info("No specific patterns detected.")
             
-        if result.risk_assessment:
-            score = result.risk_assessment.get("score", 0)
+        if result.get("risk_assessment"):
+            score = result.get("risk_assessment", {}).get("score", 0)
             color = "green" if score < 4 else "orange" if score < 7 else "red"
             st.markdown(f"**Risk Score:** :{color}[{score}/10]")
-            rationale = result.risk_assessment.get('rationale', [])
+            rationale = result.get("risk_assessment", {}).get('rationale', [])
             st.markdown("**Rationale:**")
             if isinstance(rationale, list):
                 for item in rationale:
@@ -248,7 +311,7 @@ if uploaded:
 
     with col2:
         st.subheader("Contextual Analysis")
-        ctx = result.context_analysis
+        ctx = result.get("context_analysis")
         if ctx:
             st.markdown(f"**Analysis:** {ctx.get('analysis', 'N/A')}")
             if ctx.get("adjusted_concerns"):
@@ -259,14 +322,14 @@ if uploaded:
     st.divider()
     
     st.subheader("📑 Synthesis Report")
-    if result.synthesis_report:
-        st.markdown(result.synthesis_report)
+    if result.get("synthesis_report"):
+        st.markdown(result.get("synthesis_report", ""))
     else:
         st.info("Report generation pending.")
 
     st.subheader("💡 Personalized Recommendations")
-    if result.recommendations:
-        for rec in result.recommendations:
+    if result.get("recommendations"):
+        for rec in result.get("recommendations", []):
             st.info(f"👉 {rec}")
     else:
         st.write("No specific recommendations.")
@@ -274,15 +337,15 @@ if uploaded:
     # ==========================
     # 6) Errors & Warnings
     # ==========================
-    if result.errors:
+    if result.get("errors"):
         st.subheader("⚠️ Warnings / Errors")
-        for err in result.errors:
+        for err in result.get("errors", []):
             st.error(err)
 
     # ==========================
     # 7) AI Chat Assistant
     # ==========================
-    if result.rag_collection_name:
+    if result.get("rag_collection_name"):
         st.divider()
         st.subheader("💬 Ask AI Assistant")
         
@@ -307,15 +370,14 @@ if uploaded:
             st.chat_message("user").markdown(prompt)
             # Add user message to chat history
             st.session_state.messages.append({"role": "user", "content": prompt})
-            
+
             # Get response
             with st.spinner("Thinking..."):
                 try:
-                    answer = run_rag_pipeline(
-                        prompt, 
-                        result.rag_collection_name, 
-                        st.session_state.session_id,
-                        report_context=result
+                    answer = call_backend_chat(
+                        prompt,
+                        result.get("rag_collection_name"),
+                        st.session_state.session_id
                     )
                     # Display assistant response in chat message container
                     with st.chat_message("assistant"):

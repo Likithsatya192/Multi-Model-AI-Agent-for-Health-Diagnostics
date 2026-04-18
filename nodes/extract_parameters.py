@@ -12,11 +12,15 @@ Strategy:
   4. Fast 8b model (20k TPM) for extraction; quality 70b as fallback
 """
 
+import base64
+import logging
+import mimetypes
+import os
 import re
 import json
-import logging
 from typing import List, Optional, Union
-from utils.llm_utils import get_fast_llm, get_llm
+from langchain_core.messages import SystemMessage, HumanMessage
+from utils.llm_utils import get_fast_llm, get_llm, get_vision_llm, MEDICAL_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -418,17 +422,17 @@ PARAM_ALIASES: dict[str, str] = {
 # Canonical name resolution
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _canonicalize(raw_name: str) -> str:
+def _canonicalize(raw_name: str) -> tuple[str, bool]:
     """
-    Map a raw lab parameter name to its canonical name using the alias dictionary.
-    Applies progressively looser matching to maximize hit rate.
-    Returns the raw_name itself if no match found (passed through for LLM downstream).
+    Map raw lab parameter name to canonical name.
+    Returns (name, matched) — `matched=False` means no alias hit (caller decides
+    whether to keep or drop based on auxiliary evidence like ref range / unit).
     """
     key = raw_name.strip().lower()
 
     # 1. Exact match
     if key in PARAM_ALIASES:
-        return PARAM_ALIASES[key]
+        return PARAM_ALIASES[key], True
 
     # 2. Remove common noise tokens and retry
     noise = ["serum", "blood", "plasma", "s.", "b.", "(total)", "(direct)", "(indirect)",
@@ -438,24 +442,103 @@ def _canonicalize(raw_name: str) -> str:
         cleaned = cleaned.replace(n, " ")
     cleaned = " ".join(cleaned.split())
     if cleaned in PARAM_ALIASES:
-        return PARAM_ALIASES[cleaned]
+        return PARAM_ALIASES[cleaned], True
 
     # 2b. Try condensed (no spaces) — catches "t w b c" → "twbc"
     condensed = cleaned.replace(" ", "")
     if condensed in PARAM_ALIASES:
-        return PARAM_ALIASES[condensed]
+        return PARAM_ALIASES[condensed], True
 
-    # 3. Partial / contains match (longest match wins)
+    # 3. Partial / contains match — require alias length >= 4 to avoid OCR
+    #    gibberish like "Poa" accidentally matching 2-3 char aliases.
     best = None
     best_len = 0
     for alias, canonical in PARAM_ALIASES.items():
+        if len(alias) < 4:
+            continue
         if alias in key and len(alias) > best_len:
             best, best_len = canonical, len(alias)
     if best:
-        return best
+        return best, True
 
-    # 4. No match — return original (pass-through; validator will use report ref ranges)
-    return raw_name.strip()
+    # 4. No match — return stripped original; caller decides.
+    return raw_name.strip(), False
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Hallucination / OCR-garbage defences
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Small whitelist of medically-meaningful stems for unknown-param validation.
+# If canonicalize misses and no stem matches, the entry is treated as garbage.
+_MEDICAL_STEMS = (
+    "hemo", "haemo", "cyte", "cytic", "phil", "blast", "globul", "protein",
+    "bilirub", "transamin", "phosphat", "creat", "urea", "glucose", "chol",
+    "trigly", "iron", "ferrit", "calc", "magn", "sodium", "potass", "chlor",
+    "bicarb", "albumin", "thyro", "thyrox", "triiodo", "hormon", "antigen",
+    "antibod", "vitam", "folate", "reactiv", "platelet", "thromb", "coagul",
+    "lymph", "neutro", "mono", "eosino", "baso", "erythro", "leuko", "leuco",
+    "hematocr", "corpuscul",
+)
+
+
+def _value_in_text(value: float, text: str) -> bool:
+    """
+    Check whether `value` appears literally in the raw report text.
+    Tolerates commas (Indian/US thousands) and common decimal precisions.
+    Used to drop hallucinated values the LLM invented but aren't in the report.
+    """
+    if value is None:
+        return False
+    # Strip commas and non-breaking spaces so "3,41,000" and "341000" both match.
+    normalized = re.sub(r"[,\u00a0]", "", text)
+    candidates = set()
+    if value == int(value):
+        ival = int(value)
+        candidates.add(str(ival))
+        candidates.add(f"{ival}.0")
+    else:
+        # Non-integer: don't round to an integer — "0.9" should not match a stray
+        # "1" in the text (precision-0 rounding produced false positives).
+        for prec in (1, 2, 3, 4):
+            s = f"{value:.{prec}f}"
+            candidates.add(s)
+            stripped = s.rstrip("0").rstrip(".")
+            if stripped and "." in stripped:
+                candidates.add(stripped)
+    for c in candidates:
+        if not c:
+            continue
+        pattern = r"(?<!\d)" + re.escape(c) + r"(?!\d)"
+        if re.search(pattern, normalized):
+            return True
+    return False
+
+
+def _looks_like_ocr_garbage(name: str) -> bool:
+    """
+    Heuristic gibberish detection for unrecognized parameter names.
+    Catches OCR artifacts like 'Wa ney Lem Yodan Are' / 'Copirapams' / 'Poa'.
+    """
+    if not name:
+        return True
+    stripped = name.strip()
+    if len(stripped) < 3:
+        return True
+    # If none of the known medical stems appear, treat as garbage.
+    lower = stripped.lower()
+    if any(stem in lower for stem in _MEDICAL_STEMS):
+        return False
+    # Multi-word names without a medical stem are very likely OCR noise
+    # (real params have stable vocabulary). Allow single-token abbreviations
+    # since those are already mostly in the alias dict and didn't match.
+    tokens = stripped.split()
+    if len(tokens) >= 2:
+        return True
+    # Single token, no stem, short and lowercase-mixed: garbage.
+    if len(stripped) < 5 and not stripped.isupper():
+        return True
+    return False
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -480,7 +563,7 @@ def _parse_float(val) -> Optional[float]:
 # Compact extraction prompt — ~300 tokens (was ~1400 with Pydantic instructions)
 # ─────────────────────────────────────────────────────────────────────────────
 
-_EXTRACTION_PROMPT = """Extract ALL laboratory test values from this blood/lab report. Output JSON only, no other text.
+_EXTRACTION_PROMPT = """Extract laboratory test values LITERALLY PRESENT in this blood/lab report. Output JSON only, no other text.
 
 Required JSON structure:
 {{
@@ -494,37 +577,36 @@ Required JSON structure:
   ]
 }}
 
-CORE RULES:
-1. value = patient's RESULT only — the first standalone number immediately after the parameter name.
-2. ref_low / ref_high = reference range from the report. Null if absent.
-   Reference ranges appear as: "12.0-17.5" | "12.0 \u2013 17.5" | "(12.0-17.5)" | "12.0 to 17.5" | "Ref: 12-17"
-3. flag = abnormal marker as printed: H / L / HH / LL / HIGH / LOW / A / * / \u2191 / \u2193 / CRITICAL
-   (null if absent — do NOT infer the flag; only capture what is printed)
-4. Extract ALL parameters visible in the report, including non-CBC or unknown test names.
-5. Handles any panel: CBC, LFT, KFT, Lipid, Thyroid, Coagulation, Iron, Electrolytes, HbA1c, etc.
+=== ABSOLUTE ANTI-HALLUCINATION RULES (violating ANY of these = wrong answer) ===
+A. ONLY extract parameters whose NAME and NUMERIC VALUE are both LITERALLY printed in the REPORT text below.
+B. NEVER invent, impute, fill-in, complete, or "correct" values. If a parameter is missing, OMIT IT. Do NOT add it.
+C. NEVER copy a typical reference value (e.g. Creatinine 0.9, Sodium 140) from memory — if the number is not in the text, the parameter does not exist.
+D. NEVER "fix" a patient value you think looks wrong. Copy the digits exactly as printed (e.g. if report shows 10.0, output 10.0 — not 11.2).
+E. If OCR mangled a parameter name into gibberish, SKIP IT. Do not guess what it was.
+F. patient_age: copy exactly as printed, including units like "8 Month(s)" or "45 Years". Do NOT convert.
+G. patient_gender: copy exactly ("Male", "Female") — do NOT infer from name.
+
+CORE EXTRACTION RULES:
+1. value = the patient's RESULT only — the first standalone number immediately after the parameter name.
+2. ref_low / ref_high = reference range AS PRINTED in the report. Null if not printed.
+   Ranges appear as: "12.0-17.5" | "12.0 \u2013 17.5" | "(12.0-17.5)" | "12.0 to 17.5" | "Ref: 12-17"
+   For pediatric reports showing multiple ranges (e.g. Male / Female / Child), pick the one that matches the patient's age/gender as printed in the header.
+3. flag = abnormal marker AS PRINTED: H / L / HH / LL / HIGH / LOW / A / * / \u2191 / \u2193 / CRITICAL
+   Null if not printed. Do NOT infer the flag.
+4. Extract EVERY parameter visible — do not silently drop TLC, RBC, PCV, MCV, MCH, MCHC, differential counts, CRP, etc., even if the panel has many rows.
 
 UNIT & SCALE RULES:
-6. OCR character corrections inside numbers: O\u21920, l\u21921, I\u21921, S\u21925 (e.g. "l2.5"\u219212.5, "O.9"\u21920.9)
-7. European decimal comma: "6,8"\u21926.8; thousands separator: "1.234,5"\u21921234.5
-8. Indian lakh notation: "1.5 lakh"\u2192150000; "10,000"\u219210000
-9. WBC/Platelets in x10\u00b3 format: keep as printed (e.g. 7.5 not 7500)
+5. OCR digit corrections INSIDE a visible number: O\u21920, l\u21921, I\u21921 (e.g. "l2.5"\u219212.5). Only apply when a garbled digit is obvious — do NOT synthesize a number from nothing.
+6. Indian lakh/comma notation: "3,41,000" \u2192 341000; "10,000" \u2192 10000.
+7. WBC/Platelets as printed: "11,000 cells/cu.mm" \u2192 value=11000; "3,41,000 cells/cu.mm" \u2192 value=341000.
 
-OCR / IMAGE REPORT RULES (applies when text is garbled or table columns are merged):
-10. Each parameter line in OCR output typically follows this order:
-      [Parameter Name] [Patient Value] [Unit] [Reference Range] [Flag]
-    Example: "Haemoglobin 11.2 g/dL 13.0-17.0 L"
-    Another: "S. Creatinine 0.9 mg/dL (0.7-1.3)"
-11. When column structure is broken or text is merged on one line:
-    - Parameter name = word(s) / abbreviation before the first number
-    - Patient value  = FIRST numeric token after the parameter name
-    - Reference range = a paired number pattern like "12.5-17.0" or "(12-17)"
-    - Flag = a letter/symbol at end of line: H, L, A, *, \u2191, \u2193, or word HIGH/LOW
-12. Disambiguating patient value vs. reference range:
-    - Patient value appears BEFORE any range notation (dash between two numbers, parentheses, "to", "Ref:")
-    - In a range "a-b", ref_low=a and ref_high=b (a < b always)
-    - If only one number is visible after the parameter name, treat it as the patient value (ref_low/high = null)
-13. Ignore: page headers, footers, lab name, doctor name, patient address, barcodes — only test results.
-14. Differential counts (Neutrophils %, Lymphocytes %): extract as percentage values, not absolute counts.
+OCR LAYOUT RULES:
+8. Each parameter line typically reads: [Name] [Patient Value] [Unit] [Reference Range] [Flag]
+   Example: "Haemoglobin 10.0 gms/dl 13.0 to 18.0 gms/dl"  \u2192 value=10.0 (NOT 13.0 or 18.0).
+9. Patient value appears BEFORE any range notation. In a range "a-b" or "a to b", ref_low=a, ref_high=b.
+10. If only ONE number appears after the name, it is the patient value (ref_low/high = null).
+11. Ignore: page headers/footers, lab name, doctor name, address, barcodes.
+12. Differential counts (Neutrophils, Lymphocytes, etc.) printed as % — extract as the percentage, not an absolute count.
 
 REPORT:
 {text}
@@ -597,21 +679,167 @@ def _parse_llm_json(content: str) -> dict:
     return json.loads(content[start:end])
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# System message for the extraction task.
+#
+# Uses the shared MEDICAL_SYSTEM_PROMPT as the base persona (clinical diagnostic
+# specialist) and then appends task-specific rules that OVERRIDE any tendency
+# to produce natural-language explanations. Without this override the 70B model
+# would frequently respond with prose ("The hemoglobin level is low, which
+# suggests …") instead of the raw JSON this node needs, leaving
+# extracted_params empty and breaking every downstream node.
+# ─────────────────────────────────────────────────────────────────────────────
+_EXTRACTION_SYSTEM = (
+    "You are a deterministic OCR-to-JSON extractor for laboratory reports. "
+    "You are NOT a doctor, NOT a clinician, NOT a reasoner. You do not diagnose, "
+    "interpret, or explain findings. Your ONLY job is to copy numbers and names "
+    "that are LITERALLY printed in the input text into a JSON structure.\n\n"
+    "HARD CONSTRAINTS:\n"
+    "- Output RAW JSON only. Response must start with '{' and end with '}'.\n"
+    "- No markdown code fences. No commentary. No prose.\n"
+    "- NEVER invent, impute, or fill-in values from medical knowledge. If a "
+    "  parameter is not printed in the text, DO NOT include it in lab_values.\n"
+    "- NEVER substitute a 'typical' value for a missing or illegible one.\n"
+    "- NEVER 'correct' a patient value you think looks implausible — copy digits exactly.\n"
+    "- If a parameter name is OCR garbage (gibberish), skip it entirely.\n"
+    "- If a field within a kept row cannot be determined, set that field to null; "
+    "  do not drop the whole row and do not fabricate its value.\n"
+    "- Follow the exact JSON schema and rules in the user message."
+)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Vision extraction — bypass Tesseract by sending image bytes directly to a
+# multimodal LLM. Tesseract struggles with phone photos of printed lab forms
+# (shadows, angles, blur), producing garbage like "aClrtrya LABORATORY...".
+# The vision path feeds original pixels to the model, which reads the report
+# the way a human would.
+# ─────────────────────────────────────────────────────────────────────────────
+
+_IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".gif", ".tif", ".tiff"}
+_MAX_VISION_PAGES = 4  # cap PDFs to avoid huge multimodal payloads
+
+
+def _file_to_image_data_urls(path: str) -> List[str]:
+    """
+    Convert an image file or PDF into a list of base64 data-URLs (one per page).
+    Returns [] on failure.
+    """
+    if not path or not os.path.exists(path):
+        return []
+    ext = os.path.splitext(path)[1].lower()
+    urls: List[str] = []
+    try:
+        if ext == ".pdf":
+            # Render each PDF page to a JPEG via the existing OCR helper.
+            from utils.ocr_utils import _pdf_page_to_image
+            import fitz
+            doc = fitz.open(path)
+            num_pages = min(len(doc), _MAX_VISION_PAGES)
+            doc.close()
+            from io import BytesIO
+            for pnum in range(num_pages):
+                img = _pdf_page_to_image(path, page_num=pnum, dpi=200)
+                buf = BytesIO()
+                img.convert("RGB").save(buf, format="JPEG", quality=85)
+                b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+                urls.append(f"data:image/jpeg;base64,{b64}")
+        elif ext in _IMAGE_EXTS:
+            mime, _ = mimetypes.guess_type(path)
+            if not mime or not mime.startswith("image/"):
+                mime = "image/jpeg"
+            with open(path, "rb") as f:
+                b64 = base64.b64encode(f.read()).decode("ascii")
+            urls.append(f"data:{mime};base64,{b64}")
+    except Exception as e:
+        logger.warning(f"extract_parameters: failed to prepare image data URLs: {e}")
+    return urls
+
+
+_VISION_PROMPT = """You are looking at a scanned or photographed blood/lab test report. Read the printed values directly from the image and output JSON only.
+
+Output this EXACT JSON structure (no markdown, no prose):
+{{
+  "report_type": "CBC|LFT|KFT|LIPID|THYROID|COAGULATION|IRON|DIABETES|COMPREHENSIVE|MIXED|UNKNOWN",
+  "patient_name": null,
+  "patient_age": null,
+  "patient_gender": null,
+  "lab_values": [
+    {{"raw_name": "Hemoglobin", "value": 10.0, "unit": "g/dL", "ref_low": 13.0, "ref_high": 18.0, "flag": null}}
+  ]
+}}
+
+ABSOLUTE RULES (violating any = wrong answer):
+A. Only include parameters whose name AND numeric value you can READ on the image. If you cannot read a value, OMIT the whole row. Do NOT guess.
+B. NEVER copy a typical reference value from medical knowledge. Every number you output must come from the image pixels.
+C. NEVER "correct" a patient value. Copy digits exactly as printed (e.g. 10.0 stays 10.0).
+D. patient_age: copy verbatim including units, e.g. "8 Month(s)", "45 Years". DO NOT convert.
+E. patient_gender: "Male" or "Female" as printed. Do NOT infer.
+F. For pediatric reports that print multiple reference ranges (Male / Female / Child), pick the range matching the patient's header age/gender for ref_low/ref_high.
+G. Extract EVERY parameter row visible: Hemoglobin, Total Leucocyte Count, differential counts (Polymorphs/Neutrophils, Lymphocytes, Monocytes, Eosinophils, Basophils), Total RBC Count, Packed Cell Volume, Platelet Count, MCV, MCH, MCHC, CRP — any other test rows present. Do not stop early.
+
+NUMBER RULES:
+- Indian lakh notation "3,41,000" → value: 341000 (integer).
+- "11,000 cells/cu.mm" → value: 11000.
+- Preserve decimals exactly: "70.1" → 70.1; "22.1" → 22.1.
+- flag: copy the letter/symbol printed at end of the row (H/L/HH/LL/HIGH/LOW/A/*/↑/↓). null if no flag printed.
+- ref_low/ref_high: copy from the reference column on the same row. null if absent.
+
+Return ONLY the JSON object, starting with '{{' and ending with '}}'.
+"""
+
+
+def _call_vision_json(image_urls: List[str]) -> dict:
+    """
+    Send image(s) directly to the vision LLM and parse JSON response.
+    Uses the stricter anti-hallucination extraction system prompt.
+    """
+    if not image_urls:
+        raise RuntimeError("No image data URLs provided for vision extraction")
+
+    content_blocks = [{"type": "text", "text": _VISION_PROMPT}]
+    for url in image_urls:
+        content_blocks.append({"type": "image_url", "image_url": {"url": url}})
+
+    messages = [
+        SystemMessage(content=_EXTRACTION_SYSTEM),
+        HumanMessage(content=content_blocks),
+    ]
+
+    llm = get_vision_llm(max_tokens=2048)
+    resp = llm.invoke(messages)
+    content = resp.content if hasattr(resp, "content") else str(resp)
+    return _parse_llm_json(content or "")
+
+
 def _call_llm_json(prompt: str, primary_llm, fallback_llm) -> dict:
     """
     Call LLM and parse JSON response. Tries primary then fallback.
     Returns parsed dict or raises on total failure.
+
+    Uses the task-tuned extraction system prompt (medical persona + strict
+    JSON-only rules) so the 70B model reliably returns the structured
+    schema instead of narrative text.
     """
+    messages = [
+        SystemMessage(content=_EXTRACTION_SYSTEM),
+        HumanMessage(content=prompt),
+    ]
+    last_content: str = ""
     for i, llm in enumerate([primary_llm, fallback_llm]):
         label = "fast" if i == 0 else "quality"
         try:
-            resp = llm.invoke(prompt)
+            resp = llm.invoke(messages)
             content = resp.content if hasattr(resp, "content") else str(resp)
+            last_content = content or ""
             return _parse_llm_json(content)
-        except json.JSONDecodeError as e:
-            logger.warning(f"extract_parameters: {label} model JSON parse failed: {e}")
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.warning(
+                f"extract_parameters: {label} model JSON parse failed: {e}. "
+                f"Response preview: {last_content[:400]!r}"
+            )
         except Exception as e:
-            logger.warning(f"extract_parameters: {label} model call failed: {e}")
+            logger.exception(f"extract_parameters: {label} model call failed: {type(e).__name__}: {e}")
     raise RuntimeError("All LLM models failed for extraction")
 
 
@@ -619,35 +847,82 @@ def _call_llm_json(prompt: str, primary_llm, fallback_llm) -> dict:
 # Main node
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _ocr_looks_garbage(text: str) -> bool:
+    """
+    Heuristic for when Tesseract OCR clearly failed (phone photos, shadows, blur).
+    Signal: very few recognizable medical tokens despite nonzero length.
+    """
+    if not text:
+        return True
+    lower = text.lower()
+    hits = sum(1 for k in (
+        "hemoglobin", "haemoglobin", "platelet", "leucocyte", "leukocyte",
+        "rbc", "wbc", "lymphocyte", "neutrophil", "monocyte", "eosinophil",
+        "creatinine", "cholesterol", "glucose", "bilirubin", "protein",
+    ) if k in lower)
+    return hits < 2
+
+
 def extract_parameters_node(state):
     """
     Universal extraction node.
-    Uses 8b fast model (20k TPM) as primary — adequate for JSON extraction.
-    Falls back to 70b quality model on failure.
-    Direct JSON parsing — no PydanticOutputParser overhead (~700 token saving).
+    Strategy:
+      1. If source file is an image or scanned PDF → send image bytes directly
+         to a multimodal vision LLM. Bypasses Tesseract, which is unreliable on
+         phone photos of lab reports.
+      2. Otherwise (or on vision failure) → fall back to text-based extraction
+         against the OCR/native-extracted raw_text.
+    Both paths share the same anti-hallucination post-filters.
     """
     text = state.raw_text or ""
-    if not text.strip():
-        return {
-            "extracted_params": {},
-            "errors": state.errors + ["No text to extract from."],
-        }
+    file_path = getattr(state, "raw_file_path", None) or ""
+    logger.info(
+        f"extract_parameters: raw_text length={len(text)} chars, "
+        f"file='{file_path}', first 200: {text[:200]!r}"
+    )
 
-    prompt = _EXTRACTION_PROMPT.format(text=text)
+    ext = os.path.splitext(file_path)[1].lower() if file_path else ""
+    has_image_source = ext in _IMAGE_EXTS or ext == ".pdf"
+    prefer_vision = has_image_source and (
+        not text.strip() or _ocr_looks_garbage(text)
+    )
 
-    # 8b: high TPM (20k/min), good at JSON extraction
-    # 70b: quality fallback
-    fast = get_fast_llm(max_tokens=2048)
-    quality = get_llm(max_tokens=2048)
+    data = None
+    used_vision = False
 
-    try:
-        data = _call_llm_json(prompt, fast, quality)
-    except Exception as e:
-        logger.error(f"extract_parameters: all models failed: {e}")
-        return {
-            "extracted_params": {},
-            "errors": state.errors + [f"LLM extraction failed: {e}"],
-        }
+    # ── Path 1: vision-first for image/photo reports ──────────────────────────
+    if prefer_vision:
+        logger.info("extract_parameters: trying vision LLM path (OCR unreliable or empty)")
+        try:
+            image_urls = _file_to_image_data_urls(file_path)
+            if image_urls:
+                data = _call_vision_json(image_urls)
+                used_vision = True
+                logger.info(
+                    f"extract_parameters: vision LLM returned {len(data.get('lab_values', []))} values"
+                )
+        except Exception as e:
+            logger.warning(f"extract_parameters: vision path failed, falling back to text: {e}")
+            data = None
+
+    # ── Path 2: text-based extraction (fallback or non-image source) ──────────
+    if data is None:
+        if not text.strip():
+            return {
+                "extracted_params": {},
+                "errors": state.errors + ["No text to extract from and vision extraction failed."],
+            }
+        prompt = _EXTRACTION_PROMPT.format(text=text)
+        fast = get_fast_llm(max_tokens=2048)
+        quality = get_llm(max_tokens=2048)
+        try:
+            data = _call_llm_json(prompt, fast, quality)
+        except Exception as e:
+            logger.error(f"extract_parameters: all models failed: {e}")
+            return {
+                "extracted_params": {},
+                "errors": state.errors + [f"LLM extraction failed: {e}"],
+            }
 
     report_type = str(data.get("report_type", "UNKNOWN")).upper()
     lab_values = data.get("lab_values", [])
@@ -661,6 +936,8 @@ def extract_parameters_node(state):
 
     # ── Build extracted_params dict ──────────────────────────────────────────
     extracted: dict = {}
+    dropped_hallucinated = 0
+    dropped_garbage = 0
 
     for lv in lab_values:
         if not isinstance(lv, dict):
@@ -675,19 +952,47 @@ def extract_parameters_node(state):
             logger.debug(f"extract_parameters: skipping '{raw_name}' — unparseable value")
             continue
 
-        canonical = _canonicalize(raw_name)
+        # Anti-hallucination: for the text path, values must appear literally
+        # in raw_text. For the vision path, the model read the image directly
+        # so raw_text (OCR) is not ground truth — skip this check but rely on
+        # the prompt's strict rules + the OCR-garbage gate below.
+        if not used_vision and not _value_in_text(raw_val, text):
+            dropped_hallucinated += 1
+            logger.warning(
+                f"extract_parameters: DROPPED hallucinated '{raw_name}'={raw_val} "
+                f"(value not present in raw text)"
+            )
+            continue
+
+        canonical, matched = _canonicalize(raw_name)
+
+        ref_low = _parse_float(lv.get("ref_low"))
+        ref_high = _parse_float(lv.get("ref_high"))
+        unit_raw = lv.get("unit")
+
+        # OCR-garbage gate: an unrecognized parameter name is only trusted when
+        # it has BOTH a unit AND a reference range from the report (strong signal
+        # it came from a real structured row) AND doesn't look like OCR noise.
+        # Everything else is dropped — most "new" names turn out to be garbage.
+        if not matched:
+            has_support = bool(unit_raw) and ref_low is not None and ref_high is not None
+            if not has_support or _looks_like_ocr_garbage(canonical):
+                dropped_garbage += 1
+                logger.warning(
+                    f"extract_parameters: DROPPED unrecognized param '{raw_name}' "
+                    f"(has_unit_ref={has_support}, looks_garbage={_looks_like_ocr_garbage(canonical)})"
+                )
+                continue
 
         # Dedup: keep entry with more metadata
         if canonical in extracted:
             existing = extracted[canonical]
-            has_meta = lv.get("ref_low") is not None or lv.get("flag")
+            has_meta = ref_low is not None or lv.get("flag")
             existing_meta = existing.get("report_ref_low") is not None or existing.get("report_flag")
             if not has_meta and existing_meta:
                 continue
 
-        unit = lv.get("unit") or DEFAULT_UNITS.get(canonical)
-        ref_low = _parse_float(lv.get("ref_low"))
-        ref_high = _parse_float(lv.get("ref_high"))
+        unit = unit_raw or DEFAULT_UNITS.get(canonical)
         flag = lv.get("flag")
         if flag:
             flag = str(flag).strip() or None
@@ -701,6 +1006,12 @@ def extract_parameters_node(state):
             "report_flag": flag,
             "scale_note": f"Universal extraction — {report_type}",
         }
+
+    if dropped_hallucinated or dropped_garbage:
+        logger.info(
+            f"extract_parameters: dropped {dropped_hallucinated} hallucinated, "
+            f"{dropped_garbage} OCR-garbage params"
+        )
 
     # ── Patient info ─────────────────────────────────────────────────────────
     patient_info = {}

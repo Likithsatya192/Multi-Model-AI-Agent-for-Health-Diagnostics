@@ -22,3 +22,4 @@ langchain-huggingface
 langchain-text-splitters
 langchain-community
 slowapi
+requests

@@ -1,6 +1,7 @@
 import logging
 from pydantic import BaseModel, Field
-from utils.llm_utils import get_llm, get_fallback_llm
+from langchain_core.messages import SystemMessage, HumanMessage
+from utils.llm_utils import get_llm, get_fallback_llm, MEDICAL_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -131,9 +132,26 @@ TASK
 {parser.get_format_instructions()}
 """
 
+    # Medical persona + strict JSON-only reinforcement. The base medical
+    # prompt can nudge the 70B model toward prose explanations; PydanticOutputParser
+    # then fails and context_analysis comes back empty.
+    context_system = (
+        MEDICAL_SYSTEM_PROMPT
+        + "\n\n"
+        + "TASK-SPECIFIC OUTPUT RULES (override any conflicting guidance above):\n"
+        + "- Output must match the exact JSON schema given in the user message.\n"
+        + "- Do NOT add commentary or explanations outside the JSON object.\n"
+        + "- Your entire response must start with '{' and end with '}'.\n"
+        + "- The 'analysis' field may contain narrative prose, but it MUST be inside the JSON value."
+    )
+    messages = [
+        SystemMessage(content=context_system),
+        HumanMessage(content=prompt),
+    ]
+
     try:
         llm = get_llm(max_tokens=900)
-        response = llm.invoke(prompt)
+        response = llm.invoke(messages)
         parsed = parser.invoke(response)
         result = {
             "analysis": parsed.analysis,
@@ -147,7 +165,7 @@ TASK
         logger.warning(f"model3_context primary model failed: {e}. Trying fallback.")
         try:
             llm = get_fallback_llm(max_tokens=900)
-            response = llm.invoke(prompt)
+            response = llm.invoke(messages)
             parsed = parser.invoke(response)
             return {
                 "context_analysis": {

@@ -43,8 +43,8 @@ const TOAST_STYLES: Record<ToastType, { wrapper: string; icon: React.ReactNode }
     icon: <XCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />,
   },
   info: {
-    wrapper: "bg-sky-500/10 border-sky-500/20",
-    icon: <Info className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />,
+    wrapper: "bg-primaryGlow/10 border-primaryGlow/20",
+    icon: <Info className="w-4 h-4 text-primaryGlow shrink-0 mt-0.5" />,
   },
 };
 
@@ -96,15 +96,15 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               >
                 {s.icon}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white">{toast.title}</p>
+                  <p className="text-sm font-semibold text-slate-900">{toast.title}</p>
                   {toast.message && (
-                    <p className="text-xs text-zinc-400 mt-0.5 leading-relaxed">{toast.message}</p>
+                    <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">{toast.message}</p>
                   )}
                 </div>
                 <button
                   onClick={() => dismiss(toast.id)}
                   aria-label="Dismiss notification"
-                  className="p-0.5 text-zinc-500 hover:text-white transition-colors shrink-0"
+                  className="p-0.5 text-zinc-500 hover:text-slate-900 transition-colors shrink-0"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>

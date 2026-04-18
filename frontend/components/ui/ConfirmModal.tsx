@@ -70,16 +70,16 @@ export function ConfirmModal({
               </div>
               <h2
                 id="confirm-modal-title"
-                className="text-base font-display font-bold text-white mb-2"
+                className="text-base font-display font-bold text-slate-900 mb-2"
               >
                 {title}
               </h2>
-              <p className="text-sm text-zinc-400 leading-relaxed mb-6">{description}</p>
+              <p className="text-sm text-slate-600 leading-relaxed mb-6">{description}</p>
               <div className="flex gap-2">
                 <button
                   ref={cancelRef}
                   onClick={onCancel}
-                  className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm font-medium text-zinc-300 hover:bg-white/10 transition-colors"
+                  className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm font-medium text-slate-700 hover:bg-white/10 transition-colors"
                 >
                   Cancel
                 </button>

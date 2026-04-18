@@ -1,7 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ToastProvider } from "@/components/ui/Toast";
+import { ThemeProvider } from "@/components/ui/ThemeProvider";
+import { assertVercelProductionClerkEnv } from "@/lib/env";
 import "./globals.css";
+
+assertVercelProductionClerkEnv();
 
 export const metadata: Metadata = {
   title: {
@@ -16,7 +20,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#09090b",
+  themeColor: "#caf0f8",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -30,7 +34,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <html lang="en" className="scroll-smooth">
         <body suppressHydrationWarning>
-          <ToastProvider>{children}</ToastProvider>
+          <ThemeProvider>
+            <ToastProvider>{children}</ToastProvider>
+          </ThemeProvider>
         </body>
       </html>
     </ClerkProvider>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { UserButton } from "@clerk/nextjs";
+import { useTheme } from "@/components/ui/ThemeProvider";
 import {
   BrainCircuit, Upload, ShieldAlert, Sparkles, Activity, FileText,
   ChevronRight, CheckCircle, BarChart2, MessageSquare, Zap, Lock,
@@ -30,7 +31,7 @@ function EcgLine({ className = "" }: { className?: string }) {
            L830,40 L845,40 L855,8 L865,72 L872,40 L885,40
            L980,40 L995,40 L1005,8 L1015,72 L1022,40 L1035,40
            L1130,40 L1145,40 L1155,8 L1165,72 L1172,40 L1200,40"
-        stroke="rgba(14,165,233,0.5)"
+        stroke="rgba(0,119,182,0.45)"
         strokeWidth="1.5"
         fill="none"
         style={{ strokeDasharray: 2400, strokeDashoffset: 2400, animation: 'ecgTrace 5s cubic-bezier(0.4,0,0.2,1) infinite' }}
@@ -44,7 +45,7 @@ function EcgLine({ className = "" }: { className?: string }) {
            L830,40 L845,40 L855,8 L865,72 L872,40 L885,40
            L980,40 L995,40 L1005,8 L1015,72 L1022,40 L1035,40
            L1130,40 L1145,40 L1155,8 L1165,72 L1172,40 L1200,40"
-        stroke="rgba(14,165,233,0.15)"
+        stroke="rgba(0,180,216,0.18)"
         strokeWidth="4"
         fill="none"
         style={{ filter: 'blur(3px)', strokeDasharray: 2400, strokeDashoffset: 2400, animation: 'ecgTrace 5s cubic-bezier(0.4,0,0.2,1) infinite' }}
@@ -83,7 +84,7 @@ function AnimatedStat({ value, label, suffix = "" }: { value: string; label: str
   return (
     <div ref={ref} className="text-center group">
       <div
-        className={`text-4xl md:text-5xl font-display font-bold text-white mb-2 transition-all duration-700 ${
+        className={`text-4xl md:text-5xl font-display font-bold text-slate-900 mb-2 transition-all duration-700 ${
           visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
         }`}
       >
@@ -127,13 +128,13 @@ function FeatureCard({ icon, color, title, desc, delay = 0 }: {
       {/* Hover glow */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/0 to-primary/0 group-hover:from-primary/5 group-hover:to-transparent transition-all duration-500 rounded-2xl" />
       {/* Corner accent */}
-      <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-bl-full" style={{ background: `radial-gradient(circle at top right, rgba(14,165,233,0.08), transparent 70%)` }} />
+      <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-bl-full" style={{ background: "radial-gradient(circle at top right, rgba(0,180,216,0.1), transparent 70%)" }} />
 
       <div className={`relative inline-flex p-3 rounded-xl border mb-4 ${color} group-hover:scale-110 transition-transform duration-300`}>
         {icon}
       </div>
-      <h3 className="relative text-base font-display font-bold text-white mb-2 group-hover:text-primary transition-colors duration-200">{title}</h3>
-      <p className="relative text-sm text-zinc-500 leading-relaxed group-hover:text-zinc-400 transition-colors duration-200">{desc}</p>
+      <h3 className="relative text-base font-display font-bold text-slate-900 mb-2 group-hover:text-primary transition-colors duration-200">{title}</h3>
+      <p className="relative text-sm text-zinc-500 leading-relaxed group-hover:text-slate-700 transition-colors duration-200">{desc}</p>
     </div>
   );
 }
@@ -144,15 +145,15 @@ const FEATURES = [
   { icon: <BrainCircuit className="w-5 h-5" />, color: "text-primary bg-primary/15 border-primary/20", title: "AI Parameter Extraction", desc: "Automatically identifies and extracts all CBC parameters from PDFs and images using multi-modal LLMs with high clinical accuracy.", delay: 0 },
   { icon: <ShieldAlert className="w-5 h-5" />, color: "text-pink-400 bg-pink-500/15 border-pink-500/20", title: "Risk Score & Rationale", desc: "Every report receives a 1–10 risk score with detailed clinical rationale explaining which parameters are abnormal and why.", delay: 80 },
   { icon: <BarChart2 className="w-5 h-5" />, color: "text-accent bg-accent/15 border-accent/20", title: "Visual CBC Charts", desc: "Interactive bar charts compare each parameter against reference ranges so you can spot abnormalities at a glance.", delay: 160 },
-  { icon: <MessageSquare className="w-5 h-5" />, color: "text-violet-400 bg-violet-500/15 border-violet-500/20", title: "RAG-Powered AI Chat", desc: "Ask follow-up questions about your specific report. Answers are grounded in your data via Retrieval-Augmented Generation.", delay: 0 },
-  { icon: <FileText className="w-5 h-5" />, color: "text-sky-400 bg-sky-500/15 border-sky-500/20", title: "Clinical Synthesis", desc: "A comprehensive narrative synthesising all findings, patterns, and recommendations into a single readable clinical summary.", delay: 80 },
+  { icon: <MessageSquare className="w-5 h-5" />, color: "text-primaryGlow bg-primaryGlow/15 border-primaryGlow/20", title: "RAG-Powered AI Chat", desc: "Ask follow-up questions about your specific report. Answers are grounded in your data via Retrieval-Augmented Generation.", delay: 0 },
+  { icon: <FileText className="w-5 h-5" />, color: "text-primary bg-primary/15 border-primary/20", title: "Clinical Synthesis", desc: "A comprehensive narrative synthesising all findings, patterns, and recommendations into a single readable clinical summary.", delay: 80 },
   { icon: <Activity className="w-5 h-5" />, color: "text-orange-400 bg-orange-500/15 border-orange-500/20", title: "Pattern Detection", desc: "Automatically surfaces clinically significant patterns like anaemia, leukocytosis, or thrombocytopenia from CBC data.", delay: 160 },
 ];
 
 const STEPS = [
-  { step: "01", title: "Upload your report", desc: "Drop a PDF or image of any CBC / blood panel report. Supports most lab formats worldwide.", icon: <Upload className="w-5 h-5" />, color: "from-primary/20 to-sky-600/10" },
-  { step: "02", title: "AI analyzes in minutes", desc: "Our pipeline extracts parameters, builds a RAG knowledge base, assesses risk, and generates clinical insights.", icon: <BrainCircuit className="w-5 h-5" />, color: "from-violet-500/20 to-violet-600/10" },
-  { step: "03", title: "Review & ask questions", desc: "Explore the report dashboard, view charts, and chat with AI to understand every finding in detail.", icon: <Sparkles className="w-5 h-5" />, color: "from-accent/20 to-teal-600/10" },
+  { step: "01", title: "Upload your report", desc: "Drop a PDF or image of any CBC / blood panel report. Supports most lab formats worldwide.", icon: <Upload className="w-5 h-5" />, color: "primary" },
+  { step: "02", title: "AI analyzes in minutes", desc: "Our pipeline extracts parameters, builds a RAG knowledge base, assesses risk, and generates clinical insights.", icon: <BrainCircuit className="w-5 h-5" />, color: "glow" },
+  { step: "03", title: "Review & ask questions", desc: "Explore the report dashboard, view charts, and chat with AI to understand every finding in detail.", icon: <Sparkles className="w-5 h-5" />, color: "accent" },
 ];
 
 const TRUST_POINTS = [
@@ -175,7 +176,9 @@ const PARTICLES = [
 
 export default function LandingPage() {
   const { isSignedIn, isLoaded } = useAuth();
+  const { theme } = useTheme();
   const [heroVisible, setHeroVisible] = useState(false);
+  const isDark = theme === "dark";
 
   useEffect(() => {
     const t = setTimeout(() => setHeroVisible(true), 100);
@@ -183,7 +186,7 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background text-white font-sans overflow-x-hidden">
+    <div className="min-h-screen bg-background text-slate-900 font-sans overflow-x-hidden">
 
       {/* ── Fixed ambient background ── */}
       <div className="fixed inset-0 pointer-events-none z-0" aria-hidden="true">
@@ -191,11 +194,11 @@ export default function LandingPage() {
         <div className="absolute inset-0 medical-grid opacity-60" />
         {/* Ambient orbs */}
         <div className="glow-orb absolute top-[-20%] left-[-10%] w-[800px] h-[800px] rounded-full"
-          style={{ background: 'radial-gradient(circle, rgba(14,165,233,0.12) 0%, transparent 70%)' }} />
+          style={{ background: "radial-gradient(circle, rgba(0,119,182,0.14) 0%, transparent 70%)" }} />
         <div className="glow-orb glow-orb-2 absolute bottom-[-15%] right-[-8%] w-[700px] h-[700px] rounded-full"
-          style={{ background: 'radial-gradient(circle, rgba(6,214,160,0.08) 0%, transparent 70%)' }} />
+          style={{ background: "radial-gradient(circle, rgba(0,180,216,0.1) 0%, transparent 70%)" }} />
         <div className="glow-orb glow-orb-3 absolute top-[40%] right-[20%] w-[400px] h-[400px] rounded-full"
-          style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.06) 0%, transparent 70%)' }} />
+          style={{ background: "radial-gradient(circle, rgba(144,224,239,0.16) 0%, transparent 70%)" }} />
         {/* Floating medical particles */}
         {PARTICLES.map((p, i) => (
           <MedicalParticle
@@ -215,7 +218,15 @@ export default function LandingPage() {
       <div className="relative z-10">
 
         {/* ── Navbar ── */}
-        <header className="border-b border-white/5 bg-background/80 backdrop-blur-2xl sticky top-0 z-40">
+        <header
+          className="border-b border-white/5 backdrop-blur-2xl sticky top-0 z-40"
+          style={{
+            background: isDark ? "rgba(4, 18, 38, 0.82)" : "rgba(202, 240, 248, 0.82)",
+            boxShadow: isDark
+              ? "0 1px 0 rgba(144, 224, 239, 0.08)"
+              : "0 1px 0 rgba(0, 119, 182, 0.08)",
+          }}
+        >
           {/* Scanner line under nav */}
           <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
           <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
@@ -226,7 +237,7 @@ export default function LandingPage() {
                 <div className="absolute inset-0 rounded-xl bg-primary/10 blur-sm opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
               <div className="flex flex-col">
-                <span className="font-display font-bold text-white text-sm leading-tight tracking-tight">Health AI</span>
+                <span className="font-display font-bold text-slate-900 text-sm leading-tight tracking-tight">Health AI</span>
                 <span className="text-[10px] text-primary/60 font-mono leading-tight">CBC Analyzer</span>
               </div>
             </Link>
@@ -237,7 +248,7 @@ export default function LandingPage() {
                 <a
                   key={item}
                   href={`#${item.toLowerCase().replace(/\s+/g, "-")}`}
-                  className="px-4 py-2 text-sm text-zinc-500 hover:text-white transition-colors rounded-lg hover:bg-white/5"
+                  className="px-4 py-2 text-sm text-zinc-500 hover:text-slate-900 transition-colors rounded-lg hover:bg-white/5"
                 >
                   {item}
                 </a>
@@ -253,7 +264,7 @@ export default function LandingPage() {
                   <>
                     <Link
                       href="/sign-in"
-                      className="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-white transition-colors"
+                      className="px-4 py-2 text-sm font-medium text-zinc-400 hover:text-slate-900 transition-colors"
                     >
                       Sign In
                     </Link>
@@ -293,17 +304,17 @@ export default function LandingPage() {
 
             {/* Headline */}
             <h1
-              className={`text-5xl md:text-6xl lg:text-7xl font-display font-bold text-white leading-[1.06] tracking-tight mb-6 transition-all duration-700 delay-100 ${heroVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}
+              className={`text-5xl md:text-6xl lg:text-7xl font-display font-bold text-slate-900 leading-[1.06] tracking-tight mb-6 transition-all duration-700 delay-100 ${heroVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}
             >
               Understand your{" "}
               <span
                 className="relative inline-block"
-                style={{ background: 'linear-gradient(135deg, #38BDF8, #0EA5E9, #06D6A0)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}
+                style={{ background: "linear-gradient(135deg, #00b4d8, #0077b6, #03045e)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}
               >
                 blood report
               </span>
               <br />
-              <span className="text-zinc-300">with AI precision</span>
+              <span className="text-slate-600">with AI precision</span>
             </h1>
 
             {/* Subtext */}
@@ -321,8 +332,8 @@ export default function LandingPage() {
             >
               <Link
                 href="/dashboard"
-                className="group relative inline-flex items-center gap-3 px-10 py-4 text-white font-bold rounded-2xl text-base overflow-hidden"
-                style={{ background: 'linear-gradient(135deg, #0EA5E9, #0284C7)', boxShadow: '0 0 0 3px rgba(14,165,233,0.25), 0 12px 40px rgba(14,165,233,0.45), inset 0 1px 0 rgba(255,255,255,0.2)' }}
+                className="keep-light-text group relative inline-flex items-center gap-3 px-10 py-4 text-white font-bold rounded-2xl text-base overflow-hidden"
+                style={{ background: "linear-gradient(135deg, #00b4d8, #0077b6, #03045e)", boxShadow: "0 0 0 3px rgba(144,224,239,0.34), 0 12px 32px rgba(0,119,182,0.24), inset 0 1px 0 rgba(255,255,255,0.2)" }}
               >
                 <div className="absolute inset-0 bg-white/0 group-hover:bg-white/10 transition-colors duration-200" />
                 <HeartPulse className="w-5 h-5 relative" />
@@ -351,13 +362,17 @@ export default function LandingPage() {
             <div
               className="rounded-3xl overflow-hidden relative"
               style={{
-                background: 'linear-gradient(180deg, rgba(14,165,233,0.06) 0%, rgba(15,22,35,0.9) 100%)',
-                border: '1px solid rgba(14,165,233,0.15)',
-                boxShadow: '0 40px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(14,165,233,0.08)',
+                background: isDark
+                  ? "linear-gradient(180deg, rgba(7,20,40,0.96) 0%, rgba(4,18,38,0.92) 100%)"
+                  : "linear-gradient(180deg, rgba(144,224,239,0.3) 0%, rgba(255,255,255,0.98) 100%)",
+                border: isDark ? "1px solid rgba(144,224,239,0.16)" : "1px solid rgba(0,119,182,0.14)",
+                boxShadow: isDark
+                  ? "0 30px 70px rgba(2,8,23,0.4), 0 0 0 1px rgba(0,180,216,0.08)"
+                  : "0 30px 70px rgba(0,119,182,0.12), 0 0 0 1px rgba(0,180,216,0.1)",
               }}
             >
               {/* Window bar */}
-              <div className="flex items-center gap-2 px-5 py-3.5 border-b bg-black/20" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+              <div className="flex items-center gap-2 px-5 py-3.5 border-b bg-black/20" style={{ borderColor: 'rgba(148,163,184,0.18)' }}>
                 <div className="w-2.5 h-2.5 rounded-full bg-red-500/50" />
                 <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/50" />
                 <div className="w-2.5 h-2.5 rounded-full bg-green-500/50" />
@@ -384,7 +399,7 @@ export default function LandingPage() {
                       style={{ animation: `dataStream 0.5s ease-out ${i * 80}ms both` }}
                     >
                       <div className="text-[10px] text-zinc-500 mb-1 font-mono">{p.name}</div>
-                      <div className="text-lg font-display font-bold text-white tabular-nums">{p.val}</div>
+                      <div className="text-lg font-display font-bold text-slate-900 tabular-nums">{p.val}</div>
                       <div className="text-[9px] text-zinc-600 font-mono">{p.unit}</div>
                       <div className={`w-1 h-1 rounded-full mx-auto mt-1 ${p.status === "low" ? "bg-yellow-400" : "bg-green-400"}`} />
                     </div>
@@ -400,7 +415,7 @@ export default function LandingPage() {
                     </div>
                     <div>
                       <div className="text-[10px] text-yellow-400 font-bold uppercase tracking-widest font-mono">Risk Assessment</div>
-                      <div className="text-sm text-zinc-300 mt-0.5">Mild iron-deficiency anaemia pattern detected</div>
+                      <div className="text-sm text-slate-700 mt-0.5">Mild iron-deficiency anaemia pattern detected</div>
                     </div>
                   </div>
                   <div className="text-right">
@@ -432,7 +447,7 @@ export default function LandingPage() {
               <FlaskConical className="w-3 h-3" />
               Capabilities
             </div>
-            <h2 className="text-3xl md:text-4xl font-display font-bold text-white mb-4">Everything in one clinical workspace</h2>
+            <h2 className="text-3xl md:text-4xl font-display font-bold text-slate-900 mb-4">Everything in one clinical workspace</h2>
             <p className="text-zinc-500 max-w-xl mx-auto text-sm leading-relaxed">From raw CBC data to actionable clinical insights — our AI pipeline handles the entire analysis workflow.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -449,12 +464,12 @@ export default function LandingPage() {
               <TrendingUp className="w-3 h-3" />
               Simple process
             </div>
-            <h2 className="text-3xl md:text-4xl font-display font-bold text-white">From upload to insights in 3 steps</h2>
+            <h2 className="text-3xl md:text-4xl font-display font-bold text-slate-900">From upload to insights in 3 steps</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
             {/* Connector line */}
             <div className="hidden md:block absolute top-14 left-[calc(16.7%+2rem)] right-[calc(16.7%+2rem)] h-px"
-              style={{ background: 'linear-gradient(90deg, rgba(14,165,233,0.15), rgba(14,165,233,0.5), rgba(14,165,233,0.15))' }} />
+              style={{ background: "linear-gradient(90deg, rgba(0,119,182,0.14), rgba(0,180,216,0.45), rgba(0,119,182,0.14))" }} />
 
             {STEPS.map((s, i) => (
               <div key={s.step} className="flex flex-col items-center text-center group">
@@ -463,20 +478,38 @@ export default function LandingPage() {
                   <div
                     className="w-28 h-28 rounded-3xl flex items-center justify-center relative overflow-hidden transition-transform duration-300 group-hover:scale-105"
                     style={{
-                      background: `linear-gradient(135deg, ${s.color.includes('primary') ? 'rgba(14,165,233,0.12)' : s.color.includes('violet') ? 'rgba(139,92,246,0.12)' : 'rgba(6,214,160,0.12)'}, rgba(15,22,35,0.5))`,
-                      border: `1px solid ${s.color.includes('primary') ? 'rgba(14,165,233,0.2)' : s.color.includes('violet') ? 'rgba(139,92,246,0.2)' : 'rgba(6,214,160,0.2)'}`,
+                      background: `linear-gradient(135deg, ${
+                        s.color === "primary"
+                          ? "rgba(0,119,182,0.12)"
+                          : s.color === "glow"
+                            ? "rgba(144,224,239,0.3)"
+                            : "rgba(0,180,216,0.14)"
+                      }, ${isDark ? "rgba(6,18,36,0.94)" : "rgba(255,255,255,0.96)"})`,
+                      border: `1px solid ${
+                        isDark
+                          ? s.color === "primary"
+                            ? "rgba(144,224,239,0.18)"
+                            : s.color === "glow"
+                              ? "rgba(144,224,239,0.3)"
+                              : "rgba(0,180,216,0.22)"
+                          : s.color === "primary"
+                            ? "rgba(0,119,182,0.18)"
+                            : s.color === "glow"
+                              ? "rgba(144,224,239,0.48)"
+                              : "rgba(0,180,216,0.2)"
+                      }`,
                     }}
                   >
-                    <div className={`text-4xl font-display font-bold opacity-10 absolute ${s.color.includes('primary') ? 'text-primary' : s.color.includes('violet') ? 'text-violet-400' : 'text-accent'}`}>{s.step}</div>
-                    <div className={`relative z-10 p-3 rounded-xl ${s.color.includes('primary') ? 'bg-primary/15 text-primary' : s.color.includes('violet') ? 'bg-violet-500/15 text-violet-400' : 'bg-accent/15 text-accent'}`}>
+                    <div className={`text-4xl font-display font-bold opacity-10 absolute ${s.color === "primary" ? "text-primary" : s.color === "glow" ? "text-primaryGlow" : "text-accent"}`}>{s.step}</div>
+                    <div className={`relative z-10 p-3 rounded-xl ${s.color === "primary" ? "bg-primary/15 text-primary" : s.color === "glow" ? "bg-primaryGlow/15 text-primaryGlow" : "bg-accent/15 text-accent"}`}>
                       {s.icon}
                     </div>
                   </div>
-                  <div className={`absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold font-mono text-white ${s.color.includes('primary') ? 'bg-primary' : s.color.includes('violet') ? 'bg-violet-500' : 'bg-accent'}`}>
+                  <div className={`absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold font-mono text-white ${s.color === "primary" ? "bg-primary" : s.color === "glow" ? "bg-primaryGlow" : "bg-accent"}`}>
                     {i + 1}
                   </div>
                 </div>
-                <h3 className="text-base font-display font-bold text-white mb-2">{s.title}</h3>
+                <h3 className="text-base font-display font-bold text-slate-900 mb-2">{s.title}</h3>
                 <p className="text-sm text-zinc-500 leading-relaxed max-w-[220px]">{s.desc}</p>
               </div>
             ))}
@@ -488,15 +521,17 @@ export default function LandingPage() {
           <div
             className="rounded-3xl p-8 md:p-12 relative overflow-hidden"
             style={{
-              background: 'linear-gradient(135deg, rgba(6,214,160,0.05) 0%, rgba(15,22,35,0.8) 50%, rgba(14,165,233,0.04) 100%)',
-              border: '1px solid rgba(6,214,160,0.12)',
+              background: isDark
+                ? "linear-gradient(135deg, rgba(10,28,52,0.95) 0%, rgba(6,18,36,0.98) 50%, rgba(0,119,182,0.18) 100%)"
+                : "linear-gradient(135deg, rgba(144,224,239,0.22) 0%, rgba(255,255,255,0.96) 50%, rgba(0,180,216,0.12) 100%)",
+              border: isDark ? "1px solid rgba(144,224,239,0.14)" : "1px solid rgba(0,119,182,0.12)",
             }}
           >
             {/* Corner decoration */}
             <div className="absolute top-0 right-0 w-64 h-64 opacity-30"
-              style={{ background: 'radial-gradient(circle at top right, rgba(6,214,160,0.15), transparent 70%)' }} />
+              style={{ background: "radial-gradient(circle at top right, rgba(0,180,216,0.16), transparent 70%)" }} />
             <div className="absolute bottom-0 left-0 w-48 h-48 opacity-20"
-              style={{ background: 'radial-gradient(circle at bottom left, rgba(14,165,233,0.15), transparent 70%)' }} />
+              style={{ background: "radial-gradient(circle at bottom left, rgba(0,119,182,0.14), transparent 70%)" }} />
 
             <div className="relative">
               <div className="flex items-start gap-4 mb-8">
@@ -504,7 +539,7 @@ export default function LandingPage() {
                   <Lock className="w-5 h-5 text-accent" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-display font-bold text-white mb-1">Privacy & Medical Disclaimer</h3>
+                  <h3 className="text-xl font-display font-bold text-slate-900 mb-1">Privacy & Medical Disclaimer</h3>
                   <p className="text-sm text-zinc-400 leading-relaxed">Your health data is handled responsibly. Please read these important notes.</p>
                 </div>
               </div>
@@ -512,7 +547,7 @@ export default function LandingPage() {
                 {TRUST_POINTS.map((pt) => (
                   <div key={pt.text} className="flex items-start gap-3 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-accent/15 transition-colors">
                     <div className="text-accent mt-0.5 flex-shrink-0">{pt.icon}</div>
-                    <span className="text-sm text-zinc-300 leading-snug">{pt.text}</span>
+                    <span className="text-sm text-slate-700 leading-snug">{pt.text}</span>
                   </div>
                 ))}
               </div>
@@ -527,9 +562,9 @@ export default function LandingPage() {
             <EcgLine className="h-16" />
           </div>
           <div className="relative">
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold text-white mb-5 leading-tight">
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold text-slate-900 mb-5 leading-tight">
               Ready to understand<br />
-              <span style={{ background: 'linear-gradient(135deg, #38BDF8, #0EA5E9, #06D6A0)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+              <span style={{ background: "linear-gradient(135deg, #90e0ef, #00b4d8, #0077b6)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
                 your CBC?
               </span>
             </h2>
@@ -538,8 +573,8 @@ export default function LandingPage() {
             </p>
             <Link
               href="/dashboard"
-              className="group inline-flex items-center gap-3 px-10 py-4.5 text-white font-semibold rounded-2xl text-base relative overflow-hidden"
-              style={{ background: 'linear-gradient(135deg, #0EA5E9, #0284C7, #059669)', boxShadow: '0 12px 40px rgba(14,165,233,0.4), inset 0 1px 0 rgba(255,255,255,0.15)' }}
+              className="keep-light-text group inline-flex items-center gap-3 px-10 py-4.5 text-white font-semibold rounded-2xl text-base relative overflow-hidden"
+              style={{ background: "linear-gradient(135deg, #90e0ef, #00b4d8, #0077b6)", boxShadow: "0 12px 32px rgba(0,119,182,0.22), inset 0 1px 0 rgba(255,255,255,0.15)" }}
             >
               <div className="absolute inset-0 bg-white/0 group-hover:bg-white/10 transition-colors" />
               <HeartPulse className="w-5 h-5 relative" />

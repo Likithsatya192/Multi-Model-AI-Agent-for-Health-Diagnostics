@@ -19,6 +19,7 @@ import { ConfirmModal } from "./ui/ConfirmModal";
 import { AnalysisProgress } from "./ui/AnalysisProgress";
 import { useToast } from "./ui/Toast";
 import { CbcChart } from "./ui/CbcChart";
+import { useTheme } from "./ui/ThemeProvider";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -78,10 +79,10 @@ function SafeMarkdown({ content }: { content: string }) {
     <ReactMarkdown
       components={{
         p:      ({ children }) => <p className="mb-3 last:mb-0 text-sm text-zinc-300 leading-relaxed">{children}</p>,
-        strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
+        strong: ({ children }) => <strong className="font-semibold text-slate-900">{children}</strong>,
         ul:     ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-1">{children}</ul>,
         li:     ({ children }) => <li className="text-sm text-zinc-300 pl-1">{children}</li>,
-        h3:     ({ children }) => <h3 className="text-base font-display font-bold text-white mt-4 mb-2">{children}</h3>,
+        h3:     ({ children }) => <h3 className="text-base font-display font-bold text-slate-900 mt-4 mb-2">{children}</h3>,
       }}
     >
       {content}
@@ -95,6 +96,8 @@ export default function Dashboard() {
   const { user: clerkUser } = useUser();
   const { signOut } = useClerk();
   const toast = useToast();
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
 
   const userEmail = clerkUser?.primaryEmailAddress?.emailAddress || "";
 
@@ -226,15 +229,15 @@ export default function Dashboard() {
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-background text-white font-sans selection:bg-primary/30 relative overflow-hidden">
+    <div className="min-h-screen bg-background text-slate-900 font-sans selection:bg-primary/30 relative overflow-hidden">
 
       {/* ── Ambient layers ── */}
       <div className="fixed inset-0 pointer-events-none z-0" aria-hidden="true">
         <div className="absolute inset-0 medical-grid opacity-40" />
         <div className="glow-orb absolute top-[-20%] left-[-10%] w-[800px] h-[800px] rounded-full"
-          style={{ background: "radial-gradient(circle, rgba(14,165,233,0.1) 0%, transparent 70%)" }} />
+          style={{ background: isDark ? "radial-gradient(circle, rgba(0,180,216,0.18) 0%, transparent 72%)" : "radial-gradient(circle, rgba(0,119,182,0.14) 0%, transparent 70%)" }} />
         <div className="glow-orb glow-orb-2 absolute bottom-[-20%] right-[-10%] w-[700px] h-[700px] rounded-full"
-          style={{ background: "radial-gradient(circle, rgba(6,214,160,0.06) 0%, transparent 70%)" }} />
+          style={{ background: isDark ? "radial-gradient(circle, rgba(144,224,239,0.18) 0%, transparent 72%)" : "radial-gradient(circle, rgba(0,180,216,0.1) 0%, transparent 70%)" }} />
       </div>
 
       <div className="relative z-10 w-full h-screen flex overflow-hidden">
@@ -250,20 +253,22 @@ export default function Dashboard() {
               transition={{ duration: 0.22, ease: "easeInOut" }}
               className="flex-shrink-0 h-full flex flex-col overflow-hidden border-r"
               style={{
-                background: "linear-gradient(180deg, rgba(15,22,35,0.95) 0%, rgba(10,16,28,0.98) 100%)",
-                borderColor: "rgba(14,165,233,0.08)",
+                background: isDark
+                  ? "linear-gradient(180deg, rgba(6,18,37,0.95) 0%, rgba(7,22,44,0.98) 100%)"
+                  : "linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(241,245,249,0.98) 100%)",
+                borderColor: isDark ? "rgba(144,224,239,0.12)" : "rgba(0,119,182,0.14)",
                 backdropFilter: "blur(24px)",
               }}
             >
               {/* Logo row */}
-              <div className="p-4 flex-shrink-0 border-b" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
+              <div className="p-4 flex-shrink-0 border-b" style={{ borderColor: "rgba(148,163,184,0.18)" }}>
                 <Link href="/" className="flex items-center gap-3 px-1 hover:opacity-80 transition-opacity">
                   <div className="relative p-2 bg-primary/15 rounded-xl border border-primary/20">
                     <HeartPulse className="text-primary w-4.5 h-4.5" />
                     <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-accent animate-pulse" />
                   </div>
                   <div>
-                    <span className="text-sm font-display font-bold text-white tracking-tight block">Health AI</span>
+                    <span className="text-sm font-display font-bold text-slate-900 tracking-tight block">Health AI</span>
                     <span className="text-[10px] text-primary/50 font-mono">CBC Analyzer</span>
                   </div>
                 </Link>
@@ -275,12 +280,12 @@ export default function Dashboard() {
                   onClick={handleNewAnalysis}
                   className="w-full flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group"
                   style={{
-                    background: "linear-gradient(135deg, rgba(14,165,233,0.12), rgba(14,165,233,0.06))",
-                    border: "1px solid rgba(14,165,233,0.2)",
-                    color: "#38BDF8",
+                    background: "linear-gradient(135deg, rgba(144,224,239,0.32), rgba(0,180,216,0.1))",
+                    border: "1px solid rgba(0,119,182,0.2)",
+                    color: "#0077B6",
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "linear-gradient(135deg, rgba(14,165,233,0.2), rgba(14,165,233,0.1))")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "linear-gradient(135deg, rgba(14,165,233,0.12), rgba(14,165,233,0.06))")}
+                  onMouseEnter={e => (e.currentTarget.style.background = "linear-gradient(135deg, rgba(144,224,239,0.44), rgba(0,180,216,0.16))")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "linear-gradient(135deg, rgba(144,224,239,0.32), rgba(0,180,216,0.1))")}
                 >
                   <PlusCircle className="w-4 h-4" />
                   New Analysis
@@ -322,13 +327,13 @@ export default function Dashboard() {
                               className="group relative flex flex-col gap-1 px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-150 mb-0.5"
                               style={{
                                 background: isActive
-                                  ? "linear-gradient(135deg, rgba(14,165,233,0.12), rgba(14,165,233,0.06))"
+                                  ? "linear-gradient(135deg, rgba(144,224,239,0.3), rgba(0,180,216,0.1))"
                                   : "transparent",
                                 border: isActive
-                                  ? "1px solid rgba(14,165,233,0.25)"
+                                  ? "1px solid rgba(0,119,182,0.22)"
                                   : "1px solid transparent",
                               }}
-                              onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "rgba(255,255,255,0.03)"; }}
+                              onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "rgba(226,232,240,0.55)"; }}
                               onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
                             >
                               {/* Active indicator line */}
@@ -336,7 +341,7 @@ export default function Dashboard() {
                                 <div className="absolute left-0 top-2 bottom-2 w-0.5 rounded-full bg-primary" />
                               )}
                               <div className="flex items-start justify-between gap-2">
-                                <p className="text-sm text-white font-medium leading-tight truncate flex-1">{report.title}</p>
+                                <p className="text-sm text-slate-900 font-medium leading-tight truncate flex-1">{report.title}</p>
                                 <button
                                   onClick={(e) => requestDeleteReport(report.id, e)}
                                   aria-label="Delete report"
@@ -361,13 +366,13 @@ export default function Dashboard() {
               </div>
 
               {/* User profile footer */}
-              <div className="p-3 flex-shrink-0 border-t" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
+              <div className="p-3 flex-shrink-0 border-t" style={{ borderColor: "rgba(148,163,184,0.18)" }}>
                 <div
                   className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-200 group"
                   onClick={() => setShowSettings(true)}
                   role="button"
                   aria-label="Open settings"
-                  onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
+                  onMouseEnter={e => (e.currentTarget.style.background = "rgba(226,232,240,0.55)")}
                   onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                 >
                   <div className="w-8 h-8 rounded-full bg-zinc-800 border border-white/10 overflow-hidden flex-shrink-0">
@@ -380,7 +385,7 @@ export default function Dashboard() {
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-white truncate group-hover:text-primary transition-colors">{clerkUser?.fullName || "User"}</p>
+                    <p className="text-xs font-medium text-slate-900 truncate group-hover:text-primary transition-colors">{clerkUser?.fullName || "User"}</p>
                     <p className="text-[10px] text-zinc-500 truncate">{userEmail}</p>
                   </div>
                   <Settings className="w-3.5 h-3.5 text-zinc-600 group-hover:text-zinc-400 transition-colors flex-shrink-0 group-hover:rotate-45 duration-300" />
@@ -397,15 +402,15 @@ export default function Dashboard() {
           <div
             className="flex items-center gap-3 px-4 py-3 flex-shrink-0 border-b"
             style={{
-              background: "rgba(7,9,15,0.7)",
+              background: isDark ? "rgba(5,18,37,0.82)" : "rgba(255,255,255,0.78)",
               backdropFilter: "blur(20px)",
-              borderColor: "rgba(255,255,255,0.05)",
+              borderColor: isDark ? "rgba(144,224,239,0.12)" : "rgba(148,163,184,0.18)",
             }}
           >
             <button
               onClick={() => setSidebarOpen((v) => !v)}
               aria-label="Toggle sidebar"
-              className="p-2 rounded-xl hover:bg-white/5 text-zinc-500 hover:text-white transition-colors"
+              className="p-2 rounded-xl hover:bg-white/5 text-zinc-500 hover:text-slate-900 transition-colors"
             >
               <Menu className="w-4 h-4" />
             </button>
@@ -423,7 +428,7 @@ export default function Dashboard() {
           </div>
 
           {/* Scrollable content */}
-          <div className={`flex-1 ${view === "report" && reportTab === "chat" ? "overflow-hidden flex flex-col" : "overflow-y-auto custom-scrollbar"}`}>
+          <div className={`flex-1 min-h-0 ${view === "report" && reportTab === "chat" ? "overflow-hidden flex flex-col" : "overflow-y-auto custom-scrollbar"}`}>
 
             {/* ── UPLOAD VIEW ── */}
             {view === "upload" && (
@@ -440,12 +445,12 @@ export default function Dashboard() {
                     {/* Header */}
                     <div className="text-center mb-10">
                       <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold mb-5"
-                        style={{ background: "rgba(14,165,233,0.1)", border: "1px solid rgba(14,165,233,0.2)", color: "#38BDF8" }}>
+                        style={{ background: "rgba(144,224,239,0.35)", border: "1px solid rgba(0,119,182,0.18)", color: "#0077B6" }}>
                         <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                         AI-Powered Analysis
                         <Sparkles className="w-3 h-3" />
                       </div>
-                      <h1 className="text-3xl font-display font-bold text-white mb-2">Upload a CBC Report</h1>
+                      <h1 className="text-3xl font-display font-bold text-slate-900 mb-2">Upload a CBC Report</h1>
                       <p className="text-zinc-500 text-sm leading-relaxed max-w-md mx-auto">
                         AI will extract every parameter, assess clinical risk, and generate insights in minutes.
                       </p>
@@ -456,10 +461,16 @@ export default function Dashboard() {
                       className="relative block cursor-pointer rounded-3xl p-1 transition-all duration-300"
                       style={{
                         background: file
-                          ? "linear-gradient(135deg, rgba(6,214,160,0.15), rgba(6,214,160,0.04))"
+                          ? (isDark
+                            ? "linear-gradient(135deg, rgba(12,48,78,0.88), rgba(5,24,46,0.94))"
+                            : "linear-gradient(135deg, rgba(144,224,239,0.3), rgba(0,180,216,0.08))")
                           : dragOver
-                          ? "linear-gradient(135deg, rgba(14,165,233,0.18), rgba(14,165,233,0.06))"
-                          : "linear-gradient(135deg, rgba(255,255,255,0.04), transparent)",
+                          ? (isDark
+                            ? "linear-gradient(135deg, rgba(10,39,67,0.96), rgba(4,22,45,0.94))"
+                            : "linear-gradient(135deg, rgba(144,224,239,0.4), rgba(0,119,182,0.08))")
+                          : (isDark
+                            ? "linear-gradient(135deg, rgba(5,18,36,0.96), rgba(9,28,52,0.92))"
+                            : "linear-gradient(135deg, rgba(255,255,255,0.92), rgba(226,232,240,0.42))"),
                       }}
                       onDragOver={e => { e.preventDefault(); setDragOver(true); }}
                       onDragLeave={() => setDragOver(false)}
@@ -469,9 +480,15 @@ export default function Dashboard() {
                         className="relative rounded-[22px] p-14 flex flex-col items-center justify-center gap-5 min-h-[260px] transition-all duration-300"
                         style={{
                           background: file
-                            ? "rgba(6,214,160,0.04)"
-                            : "rgba(15,22,35,0.6)",
-                          border: `2px dashed ${file ? "rgba(6,214,160,0.4)" : dragOver ? "rgba(14,165,233,0.5)" : "rgba(255,255,255,0.08)"}`,
+                            ? (isDark ? "rgba(9,35,62,0.88)" : "rgba(144,224,239,0.18)")
+                            : (isDark ? "rgba(4,18,36,0.84)" : "rgba(255,255,255,0.86)"),
+                          border: `2px dashed ${
+                            file
+                              ? (isDark ? "rgba(0,180,216,0.4)" : "rgba(0,180,216,0.38)")
+                              : dragOver
+                              ? (isDark ? "rgba(144,224,239,0.42)" : "rgba(0,119,182,0.45)")
+                              : (isDark ? "rgba(144,224,239,0.2)" : "rgba(148,163,184,0.2)")
+                          }`,
                           backdropFilter: "blur(12px)",
                         }}
                       >
@@ -486,17 +503,17 @@ export default function Dashboard() {
                           className="p-5 rounded-2xl transition-all duration-300"
                           style={{
                             background: file
-                              ? "rgba(6,214,160,0.15)"
+                              ? (isDark ? "rgba(144,224,239,0.16)" : "rgba(144,224,239,0.34)")
                               : dragOver
-                              ? "rgba(14,165,233,0.15)"
-                              : "rgba(255,255,255,0.04)",
-                            color: file ? "#06D6A0" : dragOver ? "#38BDF8" : "#52525b",
+                              ? (isDark ? "rgba(0,180,216,0.18)" : "rgba(144,224,239,0.4)")
+                              : (isDark ? "rgba(255,255,255,0.06)" : "rgba(226,232,240,0.6)"),
+                            color: file ? "#00B4D8" : dragOver ? "#90E0EF" : (isDark ? "#B8DCE8" : "#52525b"),
                           }}
                         >
                           {file ? <CheckCircle size={36} /> : <Upload size={36} />}
                         </div>
                         <div className="text-center">
-                          <div className="text-lg font-display font-bold text-white mb-1">
+                          <div className="text-lg font-display font-bold text-slate-900 mb-1">
                             {file ? "File Ready" : "Drop your report here"}
                           </div>
                           <p className="text-sm text-zinc-500">
@@ -517,8 +534,11 @@ export default function Dashboard() {
                       >
                         <button
                           onClick={() => setFile(null)}
-                          className="px-5 py-3 rounded-xl text-zinc-400 hover:text-white transition-colors text-sm"
-                          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+                          className="px-5 py-3 rounded-xl text-zinc-400 hover:text-slate-900 transition-colors text-sm"
+                          style={{
+                            background: isDark ? "rgba(9,28,52,0.88)" : "rgba(255,255,255,0.92)",
+                            border: isDark ? "1px solid rgba(144,224,239,0.12)" : "1px solid rgba(148,163,184,0.2)",
+                          }}
                         >
                           Clear
                         </button>
@@ -527,8 +547,8 @@ export default function Dashboard() {
                           disabled={uploading}
                           className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm transition-all duration-200 disabled:opacity-50"
                           style={{
-                            background: "linear-gradient(135deg, #0EA5E9, #0284C7)",
-                            boxShadow: "0 4px 24px rgba(14,165,233,0.3)",
+                            background: "linear-gradient(135deg, #00B4D8, #0077B6, #03045E)",
+                            boxShadow: "0 4px 24px rgba(0,119,182,0.24)",
                           }}
                         >
                           <Sparkles className="w-4 h-4" />
@@ -547,10 +567,13 @@ export default function Dashboard() {
                           <div
                             key={f.label}
                             className="p-4 rounded-2xl text-center hover:border-white/10 transition-colors"
-                            style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}
+                            style={{
+                              background: isDark ? "rgba(7,22,42,0.88)" : "rgba(255,255,255,0.9)",
+                              border: isDark ? "1px solid rgba(144,224,239,0.1)" : "1px solid rgba(148,163,184,0.16)",
+                            }}
                           >
                             <div className="flex justify-center mb-2">{f.icon}</div>
-                            <div className="text-sm font-display font-bold text-white">{f.label}</div>
+                            <div className="text-sm font-display font-bold text-slate-900">{f.label}</div>
                             <div className="text-xs text-zinc-600 mt-1">{f.sub}</div>
                           </div>
                         ))}
@@ -563,7 +586,7 @@ export default function Dashboard() {
 
             {/* ── REPORT VIEW ── */}
             {view === "report" && (
-              <div className={reportTab === "chat" ? "flex-1 flex flex-col overflow-hidden" : "px-6 py-8 md:px-10"}>
+              <div className={reportTab === "chat" ? "flex-1 min-h-0 flex flex-col overflow-hidden" : "px-6 py-8 md:px-10"}>
                 {loadingReport ? (
                   <div className="h-[60vh] flex flex-col items-center justify-center gap-5">
                     <div className="relative w-20 h-20">
@@ -587,11 +610,11 @@ export default function Dashboard() {
                     className={reportTab === "chat" ? "flex-1 flex flex-col overflow-hidden min-h-0" : "max-w-5xl mx-auto space-y-6 pb-20"}
                   >
                     {/* ── Report Header ── */}
-                    <div className={`flex flex-col md:flex-row items-start md:items-end justify-between gap-5 border-b border-white/5 flex-shrink-0 ${reportTab === "chat" ? "px-6 py-5" : "pb-6"}`}>
+                    <div className={`flex flex-col md:flex-row items-start md:items-end justify-between gap-5 border-b border-white/5 flex-shrink-0 ${reportTab === "chat" ? "px-6 py-4" : "pb-6"}`}>
                       <div>
                         <div className="flex items-center flex-wrap gap-2 mb-2">
                           <span className="px-3 py-1 rounded-full text-primary text-xs font-bold uppercase tracking-wider"
-                            style={{ background: "rgba(14,165,233,0.1)", border: "1px solid rgba(14,165,233,0.2)" }}>
+                            style={{ background: "rgba(144,224,239,0.35)", border: "1px solid rgba(0,119,182,0.18)" }}>
                             CBC Report
                           </span>
                           <span className="text-zinc-600 text-xs flex items-center gap-1">
@@ -599,7 +622,7 @@ export default function Dashboard() {
                             {new Date(selectedReport.created_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
                           </span>
                         </div>
-                        <h1 className="text-2xl md:text-3xl font-display font-bold text-white leading-tight">{selectedReport.title}</h1>
+                        <h1 className="text-2xl md:text-3xl font-display font-bold text-slate-900 leading-tight">{selectedReport.title}</h1>
                         <div className="flex items-center gap-2 mt-2 text-zinc-500">
                           <FileText className="w-3.5 h-3.5" />
                           <span className="font-mono text-xs">{selectedReport.filename}</span>
@@ -628,8 +651,11 @@ export default function Dashboard() {
 
                     {/* ── Tab Bar ── */}
                     <div
-                      className={`flex gap-1 p-1 rounded-2xl w-fit flex-shrink-0${reportTab === "chat" ? " mx-6 my-3" : ""}`}
-                      style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+                      className={`flex gap-1 p-1 rounded-2xl w-fit flex-shrink-0${reportTab === "chat" ? " mx-6 my-2" : ""}`}
+                      style={{
+                        background: isDark ? "rgba(8, 28, 52, 0.82)" : "rgba(255,255,255,0.88)",
+                        border: isDark ? "1px solid rgba(144,224,239,0.12)" : "1px solid rgba(148,163,184,0.18)",
+                      }}
                     >
                       {(["overview", "chart", "chat"] as const).map((tab) => {
                         const meta = {
@@ -644,9 +670,13 @@ export default function Dashboard() {
                             onClick={() => setReportTab(tab)}
                             className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200"
                             style={{
-                              background: active ? "linear-gradient(135deg, rgba(14,165,233,0.2), rgba(14,165,233,0.08))" : "transparent",
-                              border: active ? "1px solid rgba(14,165,233,0.25)" : "1px solid transparent",
-                              color: active ? "#38BDF8" : "#71717a",
+                              background: active
+                                ? (isDark ? "linear-gradient(135deg, rgba(0,180,216,0.18), rgba(144,224,239,0.08))" : "linear-gradient(135deg, rgba(144,224,239,0.4), rgba(0,180,216,0.12))")
+                                : "transparent",
+                              border: active
+                                ? (isDark ? "1px solid rgba(144,224,239,0.16)" : "1px solid rgba(0,119,182,0.2)")
+                                : "1px solid transparent",
+                              color: active ? "#0077B6" : "#71717a",
                             }}
                           >
                             {meta[tab].icon}
@@ -662,12 +692,23 @@ export default function Dashboard() {
 
                         {/* Parameters Grid */}
                         {selectedReport.param_interpretation && (
-                          <div>
-                            <h2 className="text-xs font-semibold text-zinc-500 mb-3 uppercase tracking-widest flex items-center gap-2">
+                          <div
+                            className="rounded-[28px] p-5 md:p-6"
+                            style={{
+                              background: isDark
+                                ? "linear-gradient(180deg, rgba(6,20,38,0.82), rgba(9,28,52,0.92))"
+                                : "linear-gradient(180deg, rgba(255,255,255,0.78), rgba(247,253,255,0.92))",
+                              border: isDark ? "1px solid rgba(144,224,239,0.1)" : "1px solid rgba(0,119,182,0.08)",
+                              boxShadow: isDark
+                                ? "inset 0 1px 0 rgba(255,255,255,0.03)"
+                                : "0 20px 48px rgba(15, 23, 42, 0.06)",
+                            }}
+                          >
+                            <h2 className="text-xs font-semibold text-zinc-500 mb-4 uppercase tracking-widest flex items-center gap-2">
                               <FlaskConical className="w-3.5 h-3.5 text-primary/60" />
                               CBC Parameters
                             </h2>
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                               {Object.entries(selectedReport.param_interpretation).map(([key, data]: [string, any], i) => (
                                 <motion.div
                                   key={key}
@@ -675,30 +716,45 @@ export default function Dashboard() {
                                   animate={{ opacity: 1, y: 0 }}
                                   transition={{ duration: 0.3, delay: i * 0.04 }}
                                   whileHover={{ y: -3 }}
-                                  className="p-4 rounded-2xl border transition-all duration-200 cursor-default group"
+                                  className="p-5 rounded-[24px] border transition-all duration-200 cursor-default"
                                   style={{
                                     background: data.status === "high"
-                                      ? "linear-gradient(135deg, rgba(239,68,68,0.06), rgba(239,68,68,0.02))"
+                                      ? (isDark
+                                        ? "linear-gradient(180deg, rgba(58,22,32,0.78), rgba(34,14,21,0.9))"
+                                        : "linear-gradient(180deg, rgba(255,250,251,0.92), rgba(255,246,248,0.98))")
                                       : data.status === "low"
-                                      ? "linear-gradient(135deg, rgba(234,179,8,0.06), rgba(234,179,8,0.02))"
-                                      : "linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))",
+                                      ? (isDark
+                                        ? "linear-gradient(180deg, rgba(62,46,17,0.8), rgba(40,29,10,0.92))"
+                                        : "linear-gradient(180deg, rgba(255,252,245,0.95), rgba(255,249,236,0.98))")
+                                      : (isDark
+                                        ? "linear-gradient(180deg, rgba(9,32,58,0.86), rgba(8,25,46,0.96))"
+                                        : "linear-gradient(180deg, rgba(252,254,255,0.96), rgba(244,250,253,0.98))"),
                                     borderColor: data.status === "high"
                                       ? "rgba(239,68,68,0.18)"
                                       : data.status === "low"
                                       ? "rgba(234,179,8,0.18)"
-                                      : "rgba(255,255,255,0.06)",
+                                      : (isDark ? "rgba(144,224,239,0.12)" : "rgba(148,163,184,0.14)"),
+                                    boxShadow: isDark
+                                      ? "inset 0 1px 0 rgba(255,255,255,0.03)"
+                                      : "0 12px 28px rgba(148, 163, 184, 0.08)",
                                   }}
                                 >
-                                  <div className="flex justify-between items-start mb-2">
-                                    <div className="text-xs font-medium text-zinc-400 truncate flex-1 mr-1 font-mono">{key}</div>
-                                    <div className={`w-2 h-2 rounded-full flex-shrink-0 mt-0.5 ${
+                                  <div className="flex items-start justify-between gap-3 mb-4">
+                                    <div className="min-w-0">
+                                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-500 truncate font-mono">{key}</div>
+                                      <div className="mt-1 text-[11px] text-zinc-600">
+                                        {data.status === "normal" ? "Within range" : data.status === "low" ? "Below range" : "Above range"}
+                                      </div>
+                                    </div>
+                                    <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1 ${
                                       data.status === "high"   ? "bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.8)]"
                                       : data.status === "low"  ? "bg-yellow-500 shadow-[0_0_6px_rgba(234,179,8,0.8)]"
                                       : "bg-emerald-500 shadow-[0_0_6px_rgba(34,197,94,0.7)]"}`}
                                     />
                                   </div>
-                                  <div className="text-xl font-display font-bold text-white tabular-nums">
-                                    {data.value} <span className="text-xs font-normal text-zinc-500">{data.unit}</span>
+                                  <div className="text-2xl font-display font-bold text-slate-900 tabular-nums tracking-tight">
+                                    {data.value}
+                                    <span className="ml-1 text-xs font-normal text-zinc-500">{data.unit}</span>
                                   </div>
                                   <div className="text-[10px] text-zinc-600 font-mono mt-1">
                                     ref: {data.reference?.low} – {data.reference?.high}
@@ -715,14 +771,16 @@ export default function Dashboard() {
                           <div
                             className="lg:col-span-2 rounded-2xl p-7 relative overflow-hidden"
                             style={{
-                              background: "linear-gradient(135deg, rgba(15,22,35,0.9), rgba(10,16,28,0.95))",
-                              border: "1px solid rgba(14,165,233,0.1)",
-                              boxShadow: "0 0 40px rgba(14,165,233,0.04)",
+                              background: isDark
+                                ? "linear-gradient(135deg, rgba(6,20,38,0.9), rgba(9,28,52,0.96))"
+                                : "linear-gradient(135deg, rgba(255,255,255,0.98), rgba(241,245,249,0.96))",
+                              border: isDark ? "1px solid rgba(144,224,239,0.1)" : "1px solid rgba(0,119,182,0.12)",
+                              boxShadow: isDark ? "none" : "0 0 40px rgba(0,119,182,0.08)",
                             }}
                           >
                             <div className="absolute top-0 right-0 w-52 h-52 opacity-30 pointer-events-none"
-                              style={{ background: "radial-gradient(circle at top right, rgba(14,165,233,0.12), transparent 70%)" }} />
-                            <h3 className="text-sm font-display font-bold text-white mb-4 flex items-center gap-2 relative z-10">
+                              style={{ background: "radial-gradient(circle at top right, rgba(0,180,216,0.14), transparent 70%)" }} />
+                            <h3 className="text-sm font-display font-bold text-slate-900 mb-4 flex items-center gap-2 relative z-10">
                               <div className="p-1.5 bg-primary/15 rounded-lg text-primary border border-primary/20">
                                 <FileText className="w-3.5 h-3.5" />
                               </div>
@@ -741,11 +799,13 @@ export default function Dashboard() {
                             <div
                               className="rounded-2xl p-5"
                               style={{
-                                background: "linear-gradient(135deg, rgba(15,22,35,0.9), rgba(10,16,28,0.95))",
-                                border: "1px solid rgba(255,255,255,0.06)",
+                                background: isDark
+                                  ? "linear-gradient(135deg, rgba(7,22,42,0.88), rgba(9,28,52,0.94))"
+                                  : "linear-gradient(135deg, rgba(255,255,255,0.98), rgba(241,245,249,0.96))",
+                                border: isDark ? "1px solid rgba(144,224,239,0.1)" : "1px solid rgba(148,163,184,0.16)",
                               }}
                             >
-                              <h3 className="text-sm font-display font-bold text-white mb-3 flex items-center gap-2">
+                              <h3 className="text-sm font-display font-bold text-slate-900 mb-3 flex items-center gap-2">
                                 <ShieldAlert className="w-4 h-4 text-accent" />
                                 Risk Assessment
                               </h3>
@@ -767,11 +827,13 @@ export default function Dashboard() {
                             <div
                               className="rounded-2xl p-5"
                               style={{
-                                background: "linear-gradient(135deg, rgba(15,22,35,0.9), rgba(10,16,28,0.95))",
-                                border: "1px solid rgba(255,255,255,0.06)",
+                                background: isDark
+                                  ? "linear-gradient(135deg, rgba(7,22,42,0.88), rgba(9,28,52,0.94))"
+                                  : "linear-gradient(135deg, rgba(255,255,255,0.98), rgba(241,245,249,0.96))",
+                                border: isDark ? "1px solid rgba(144,224,239,0.1)" : "1px solid rgba(148,163,184,0.16)",
                               }}
                             >
-                              <h3 className="text-sm font-display font-bold text-white mb-3 flex items-center gap-2">
+                              <h3 className="text-sm font-display font-bold text-slate-900 mb-3 flex items-center gap-2">
                                 <Activity className="w-4 h-4 text-primary" />
                                 Patterns Detected
                               </h3>
@@ -781,7 +843,10 @@ export default function Dashboard() {
                                     <span
                                       key={i}
                                       className="px-2.5 py-1 rounded-lg text-xs text-zinc-300"
-                                      style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}
+                                      style={{
+                                        background: isDark ? "rgba(255,255,255,0.04)" : "rgba(241,245,249,0.95)",
+                                        border: isDark ? "1px solid rgba(144,224,239,0.1)" : "1px solid rgba(148,163,184,0.18)",
+                                      }}
                                     >
                                       {pat}
                                     </span>
@@ -799,11 +864,13 @@ export default function Dashboard() {
                           <div
                             className="rounded-2xl p-7"
                             style={{
-                              background: "linear-gradient(135deg, rgba(15,22,35,0.9), rgba(10,16,28,0.95))",
-                              border: "1px solid rgba(6,214,160,0.1)",
+                              background: isDark
+                                ? "linear-gradient(135deg, rgba(7,22,42,0.88), rgba(9,28,52,0.94))"
+                                : "linear-gradient(135deg, rgba(255,255,255,0.98), rgba(241,245,249,0.96))",
+                              border: isDark ? "1px solid rgba(144,224,239,0.1)" : "1px solid rgba(0,180,216,0.12)",
                             }}
                           >
-                            <h3 className="text-sm font-display font-bold text-white mb-4 flex items-center gap-2">
+                            <h3 className="text-sm font-display font-bold text-slate-900 mb-4 flex items-center gap-2">
                               <div className="p-1.5 bg-accent/15 rounded-lg text-accent border border-accent/20">
                                 <CheckCircle className="w-3.5 h-3.5" />
                               </div>
@@ -814,7 +881,10 @@ export default function Dashboard() {
                                 <div
                                   key={i}
                                   className="flex gap-3 p-4 rounded-xl transition-colors hover:border-accent/15"
-                                  style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}
+                                  style={{
+                                    background: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.9)",
+                                    border: isDark ? "1px solid rgba(144,224,239,0.08)" : "1px solid rgba(148,163,184,0.16)",
+                                  }}
                                 >
                                   <Check className="w-4 h-4 text-accent flex-shrink-0 mt-0.5" />
                                   <span className="text-zinc-300 text-sm leading-relaxed">{rec}</span>
@@ -833,11 +903,13 @@ export default function Dashboard() {
                           <div
                             className="rounded-2xl p-7"
                             style={{
-                              background: "linear-gradient(135deg, rgba(15,22,35,0.9), rgba(10,16,28,0.95))",
-                              border: "1px solid rgba(14,165,233,0.1)",
+                              background: isDark
+                                ? "linear-gradient(135deg, rgba(6,20,38,0.92), rgba(9,28,52,0.96))"
+                                : "linear-gradient(135deg, rgba(255,255,255,0.98), rgba(241,245,249,0.96))",
+                              border: isDark ? "1px solid rgba(144,224,239,0.12)" : "1px solid rgba(0,119,182,0.12)",
                             }}
                           >
-                            <h3 className="text-sm font-display font-bold text-white mb-1 flex items-center gap-2">
+                            <h3 className="text-sm font-display font-bold text-slate-900 mb-1 flex items-center gap-2">
                               <div className="p-1.5 bg-primary/15 rounded-lg text-primary border border-primary/20">
                                 <BarChart2 className="w-3.5 h-3.5" />
                               </div>
@@ -847,7 +919,13 @@ export default function Dashboard() {
                             <CbcChart data={selectedReport.param_interpretation} />
                           </div>
                         ) : (
-                          <div className="rounded-2xl p-10 text-center" style={{ background: "rgba(15,22,35,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                          <div
+                            className="rounded-2xl p-10 text-center"
+                            style={{
+                              background: isDark ? "rgba(6,20,38,0.9)" : "rgba(255,255,255,0.92)",
+                              border: isDark ? "1px solid rgba(144,224,239,0.12)" : "1px solid rgba(148,163,184,0.16)",
+                            }}
+                          >
                             <BarChart2 className="w-10 h-10 text-zinc-700 mx-auto mb-3" />
                             <p className="text-zinc-500 text-sm">No parameter data available.</p>
                           </div>
@@ -857,22 +935,25 @@ export default function Dashboard() {
 
                     {/* ── CHAT TAB ── */}
                     {reportTab === "chat" && (
-                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }} className="flex-1 flex flex-col overflow-hidden min-h-0 px-6 pb-6">
+                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }} className="flex-1 flex flex-col overflow-hidden min-h-0 h-full px-4 pb-4 md:px-6 md:pb-6">
                         {selectedReport.rag_collection_name ? (
                           <div
-                            className="flex-1 rounded-2xl overflow-hidden flex flex-col min-h-0"
+                            className="flex-1 rounded-[28px] overflow-hidden flex flex-col min-h-0 h-full"
                             style={{
-                              background: "linear-gradient(135deg, rgba(15,22,35,0.9), rgba(10,16,28,0.95))",
-                              border: "1px solid rgba(139,92,246,0.12)",
+                              background: isDark
+                                ? "linear-gradient(135deg, rgba(5,18,36,0.94), rgba(8,26,49,0.98))"
+                                : "linear-gradient(135deg, rgba(255,255,255,0.98), rgba(241,245,249,0.96))",
+                              border: isDark ? "1px solid rgba(144,224,239,0.12)" : "1px solid rgba(0,180,216,0.14)",
+                              boxShadow: isDark ? "0 24px 60px rgba(2,8,23,0.28)" : "0 26px 56px rgba(0,119,182,0.1)",
                             }}
                           >
-                            <div className="p-5 border-b flex items-center justify-between flex-shrink-0" style={{ borderColor: "rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.02)" }}>
+                            <div className="px-6 py-4 md:px-7 md:py-5 border-b flex items-center justify-between flex-shrink-0" style={{ borderColor: isDark ? "rgba(144,224,239,0.1)" : "rgba(148,163,184,0.16)", background: isDark ? "rgba(7,23,43,0.82)" : "rgba(255,255,255,0.84)" }}>
                               <div>
-                                <h3 className="text-sm font-display font-bold text-white flex items-center gap-2">
-                                  <Sparkles className="w-4 h-4 text-violet-400" />
+                                <h3 className="text-base md:text-lg font-display font-bold text-slate-900 flex items-center gap-2.5">
+                                  <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-primaryGlow" />
                                   Ask AI about this report
                                 </h3>
-                                <p className="text-xs text-zinc-500 mt-0.5">Powered by RAG — answers grounded in your data</p>
+                                <p className="text-sm text-zinc-500 mt-1">Powered by RAG - answers grounded in your data</p>
                               </div>
                               <div className="flex items-center gap-1.5">
                                 <div className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
@@ -887,7 +968,13 @@ export default function Dashboard() {
                             />
                           </div>
                         ) : (
-                          <div className="rounded-2xl p-10 text-center" style={{ background: "rgba(15,22,35,0.8)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                          <div
+                            className="rounded-2xl p-10 text-center"
+                            style={{
+                              background: isDark ? "rgba(6,20,38,0.9)" : "rgba(255,255,255,0.92)",
+                              border: isDark ? "1px solid rgba(144,224,239,0.12)" : "1px solid rgba(148,163,184,0.16)",
+                            }}
+                          >
                             <Sparkles className="w-10 h-10 text-zinc-700 mx-auto mb-3" />
                             <p className="text-zinc-500 text-sm">AI chat is not available for this report.</p>
                           </div>
@@ -928,20 +1015,20 @@ export default function Dashboard() {
               transition={{ type: "spring", damping: 28, stiffness: 220 }}
               className="fixed top-0 right-0 z-50 h-full w-full max-w-sm flex flex-col shadow-2xl"
               style={{
-                background: "linear-gradient(180deg, rgba(15,22,35,0.98) 0%, rgba(10,16,28,1) 100%)",
-                border: "1px solid rgba(255,255,255,0.07)",
+                background: "linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(241,245,249,1) 100%)",
+                border: "1px solid rgba(148,163,184,0.18)",
                 borderRight: "none",
                 backdropFilter: "blur(24px)",
               }}
               role="dialog"
               aria-label="Settings"
             >
-              <div className="p-6 border-b flex items-center justify-between flex-shrink-0" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
-                <h2 className="text-base font-display font-bold text-white">Settings</h2>
+              <div className="p-6 border-b flex items-center justify-between flex-shrink-0" style={{ borderColor: "rgba(148,163,184,0.16)" }}>
+                <h2 className="text-base font-display font-bold text-slate-900">Settings</h2>
                 <button
                   onClick={() => setShowSettings(false)}
                   aria-label="Close settings"
-                  className="p-2 hover:bg-white/5 rounded-xl transition-colors text-zinc-400 hover:text-white"
+                  className="p-2 hover:bg-white/5 rounded-xl transition-colors text-zinc-400 hover:text-slate-900"
                 >
                   <X size={16} />
                 </button>
@@ -949,9 +1036,9 @@ export default function Dashboard() {
 
               <div className="flex-1 p-6 overflow-y-auto custom-scrollbar space-y-5">
                 {/* Avatar */}
-                <div className="flex flex-col items-center pb-5 border-b" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+                <div className="flex flex-col items-center pb-5 border-b" style={{ borderColor: "rgba(148,163,184,0.16)" }}>
                   <div className="w-20 h-20 rounded-full mb-4 overflow-hidden relative group"
-                    style={{ border: "2px solid rgba(14,165,233,0.2)" }}>
+                    style={{ border: "2px solid rgba(0,119,182,0.18)" }}>
                     {clerkUser?.imageUrl ? (
                       <img src={clerkUser.imageUrl} alt="Profile" className="w-full h-full object-cover" />
                     ) : (
@@ -969,7 +1056,7 @@ export default function Dashboard() {
 
                   {!isEditing ? (
                     <div className="text-center">
-                      <h3 className="text-base font-display font-bold text-white">{clerkUser?.fullName || "User"}</h3>
+                      <h3 className="text-base font-display font-bold text-slate-900">{clerkUser?.fullName || "User"}</h3>
                       <p className="text-zinc-500 text-sm mt-0.5">{userEmail}</p>
                       <button
                         onClick={() => setIsEditing(true)}
@@ -990,13 +1077,13 @@ export default function Dashboard() {
                       </div>
                       <div className="flex gap-2">
                         <button type="button" onClick={() => setIsEditing(false)}
-                          className="flex-1 py-2.5 rounded-xl text-sm font-medium text-zinc-400 hover:text-white transition-colors"
+                          className="flex-1 py-2.5 rounded-xl text-sm font-medium text-zinc-400 hover:text-slate-900 transition-colors"
                           style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
                           Cancel
                         </button>
                         <button type="submit" disabled={updatingProfile}
                           className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-all"
-                          style={{ background: "linear-gradient(135deg, #0EA5E9, #0284C7)" }}>
+                          style={{ background: "linear-gradient(135deg, #00B4D8, #0077B6, #03045E)" }}>
                           {updatingProfile ? "Saving…" : "Save"}
                         </button>
                       </div>
@@ -1005,14 +1092,14 @@ export default function Dashboard() {
                 </div>
 
                 {/* Account info */}
-                <div className="rounded-2xl p-4" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                <div className="rounded-2xl p-4" style={{ background: "rgba(255,255,255,0.92)", border: "1px solid rgba(148,163,184,0.16)" }}>
                   <p className="text-[10px] text-zinc-500 uppercase font-semibold tracking-widest mb-3">Account</p>
-                  <p className="text-sm text-zinc-200 font-medium">{clerkUser?.fullName}</p>
+                  <p className="text-sm text-slate-900 font-medium">{clerkUser?.fullName}</p>
                   <p className="text-xs text-zinc-500 mt-0.5">{userEmail}</p>
                 </div>
 
                 {/* Activity */}
-                <div className="rounded-2xl p-4" style={{ background: "rgba(14,165,233,0.04)", border: "1px solid rgba(14,165,233,0.1)" }}>
+                <div className="rounded-2xl p-4" style={{ background: "rgba(144,224,239,0.28)", border: "1px solid rgba(0,119,182,0.12)" }}>
                   <p className="text-[10px] text-zinc-500 uppercase font-semibold tracking-widest mb-3">Activity</p>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-zinc-400">Reports analyzed</span>

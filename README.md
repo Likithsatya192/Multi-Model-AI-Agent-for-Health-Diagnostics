@@ -7,17 +7,20 @@ An AI-powered blood report analyzer that handles **any blood test panel** from a
 ## Features
 
 - **Universal Report Support** — Analyzes CBC, LFT, KFT/RFT, Lipid Panel, Thyroid, Coagulation, Iron Studies, HbA1c/Diabetes, Electrolytes, and mixed/comprehensive panels. Not limited to CBC.
-- **Worldwide Lab Format Compatibility** — Handles Indian path labs (NABL), US (CLIA), European (ISO 15189), and other regional formats with different number conventions, unit styles, and table layouts.
-- **Dynamic Parameter Extraction** — 483-alias dictionary maps every known raw lab name variant (SGPT→ALT, TLC→Total WBC, FBS→Fasting Blood Glucose, etc.) to canonical names. Unknown parameters pass through using the report's own embedded reference ranges.
-- **84-Parameter Reference Database** — Curated gender-adjusted reference ranges for CBC, LFT, KFT, Lipid, Thyroid, Diabetes, Iron Studies, Coagulation, Electrolytes, Vitamins, and more.
+- **Worldwide Lab Format Compatibility** — Handles Indian path labs (NABL), US (CLIA), European (ISO 15189), and other regional formats with different number conventions (incl. Indian lakh `3,41,000`), unit styles, and table layouts.
+- **Vision-First Extraction** — Phone photos of lab reports bypass Tesseract entirely and go to a multimodal Groq model (`llama-4-scout-17b-16e-instruct`). OCR is auto-detected as garbage via medical-token density and the pipeline falls over to the vision path; no user toggle needed.
+- **Anti-Hallucination Safeguards** — Deterministic extractor system prompt (no clinical persona), hard rules that forbid inventing/imputing/"correcting" values, post-extraction value-in-text verification, OCR-garbage name filter. Eliminates fabricated parameters (Creatinine, Sodium, etc.) that generic medical LLMs often add.
+- **Pediatric-Aware Validation** — Age parsed from the report header (`8 Month(s)`, `2y 3m`, `45 Years`) into buckets (newborn / infant / toddler / child / adolescent / adult). Pediatric buckets override adult-gender ranges for CBC parameters (Hgb, RBC, PCV, MCV, MCH, MCHC, WBC, Neutrophils, Lymphocytes) so an 8-month-old is never flagged against adult thresholds.
+- **Dynamic Parameter Extraction** — 483-alias dictionary maps every known raw lab name variant (SGPT→ALT, TLC→Total WBC, FBS→Fasting Blood Glucose, etc.) to canonical names. Unknown parameters pass through only when supported by an embedded reference range AND unit — prevents OCR gibberish from reaching the UI.
+- **Gender + Age-Adjusted Reference Database** — Curated reference ranges for CBC, LFT, KFT, Lipid, Thyroid, Diabetes, Iron Studies, Coagulation, Electrolytes, Vitamins, and more.
 - **Multi-Model Clinical Analysis** — Severity classification (mild/moderate/severe/critical), percent deviation from reference midpoint, pattern detection across all panels, risk scoring (1–10), age/gender-adjusted contextual analysis, and prioritized recommendations.
-- **Enhanced OCR Pipeline** — Otsu binarization, deskew correction, multi-PSM Tesseract strategy (PSM 6/4/11), 400 DPI rendering. Best result selected per page automatically.
-- **Rate-Limited LLM Usage** — Quality model (`llama-3.3-70b-versatile`) for extraction and reasoning; fast model (`llama-3.1-8b-instant`) for structured tasks. Separate Groq rate-limit buckets prevent 429 chains.
+- **Enhanced OCR Fallback** — Otsu binarization, deskew correction, multi-PSM Tesseract strategy (PSM 6/4/11), 300 DPI rendering. Used for native-text PDFs or when vision path is unavailable.
+- **Dual-Key Groq Routing** — Primary key for heavy reasoning (synthesis/context/recommendations/RAG), secondary key for extraction + vision. Doubles effective TPM, isolates rate-limit cascades.
 - **RAG Chatbot** — Ask natural-language questions about your report; answers grounded in your specific results via FAISS vector search + conversation history (last 10 turns). Chat history persisted to Supabase per report.
 - **Secure Authentication** — Clerk-based auth (Google + email/password) protecting all routes. Landing page is publicly accessible.
 - **Rate Limiting** — `/analyze` capped at 10 req/min, `/chat` at 30 req/min per IP.
 - **User History** — Report metadata and chat history stored in Supabase (PostgreSQL).
-- **Production Hardened** — Dockerized with Nginx, CI/CD to AWS EC2 via GitHub Actions. Structured JSON logging, health check endpoint, session TTL cleanup, file type + size validation.
+- **Production Hardened** — Dockerized backend on Render, Next.js frontend on Vercel. Structured JSON logging, health check endpoint, session TTL cleanup, file type + size validation, SHA-256-hashed FAISS indexes.
 
 ---
 
@@ -31,14 +34,14 @@ An AI-powered blood report analyzer that handles **any blood test panel** from a
 | **Metadata DB** | Supabase (PostgreSQL) |
 | **Backend** | FastAPI + Uvicorn |
 | **Pipeline** | LangGraph (8-node DAG) |
-| **LLM — Quality** | Groq `llama-3.3-70b-versatile` (extraction, reasoning, synthesis) |
-| **LLM — Fast** | Groq `llama-3.1-8b-instant` (structured pattern tasks, fallback) |
+| **LLM — Medical Reasoning** | Groq `llama-3.3-70b-versatile` (text extraction fallback, interpretation, patterns, context, synthesis, recommendations, RAG) |
+| **LLM — Vision** | Groq `meta-llama/llama-4-scout-17b-16e-instruct` (image/photo lab-report extraction) |
 | **Embeddings** | HuggingFace `sentence-transformers/all-MiniLM-L6-v2` |
-| **Vector Store** | FAISS (in-process, persisted to Docker volume) |
-| **OCR** | Tesseract + PyMuPDF (fitz) |
+| **Vector Store** | FAISS (in-process, persisted to Docker volume, SHA-256 integrity-verified) |
+| **OCR (fallback)** | Tesseract + PyMuPDF (fitz) |
 | **Containerization** | Docker + Docker Compose |
-| **Reverse Proxy** | Nginx |
-| **CI/CD** | GitHub Actions → Docker Hub → AWS EC2 |
+| **Backend hosting** | Render (Docker) |
+| **Frontend hosting** | Vercel |
 
 ---
 
@@ -58,9 +61,9 @@ Browser → Nginx → Next.js (frontend:3000)
 
 ```mermaid
 flowchart TD
-    A([File Upload]) --> B[ingest_and_ocr\nPyMuPDF native → multi-page OCR fallback\nOtsu binarize · deskew · multi-PSM · 400 DPI]
-    B --> C[extract_parameters\nUniversal extraction — any panel\n483 aliases · dynamic schema · report ref ranges]
-    C --> D[validate_standardize\n84-param DB · report-embedded ranges · pass-through]
+    A([File Upload]) --> B[ingest_and_ocr\nPyMuPDF native → multi-page OCR fallback\nOtsu binarize · deskew · multi-PSM · 300 DPI]
+    B --> C[extract_parameters\nVision-first for images/photos · Groq llama-4-scout\nText fallback · 483 aliases · anti-hallucination gates]
+    C --> D[validate_standardize\nAge bucket parsing · pediatric ranges · gender-adjusted\nreport-embedded ranges · pass-through]
     D --> E[model1_interpretation\nSeverity · critical thresholds · % deviation]
     E --> F[model2_patterns\nCBC + LFT + KFT + Lipid + Thyroid patterns\nRisk score 1–10]
     F --> G[model3_context\nAge/gender-adjusted · urgency level]
@@ -78,9 +81,9 @@ flowchart TD
 
 | Node | Output |
 |---|---|
-| `ingest_and_ocr` | `raw_text` — native PDF text or multi-page OCR |
-| `extract_parameters` | `extracted_params`, `patient_info`, `report_type` — all lab values + demographics |
-| `validate_standardize` | `validated_params` — gender-adjusted LOW/NORMAL/HIGH flags, scale-normalized |
+| `ingest_and_ocr` | `raw_text` — native PDF text or multi-page Tesseract OCR (used for PDFs with embedded text; vision path bypasses this for photos) |
+| `extract_parameters` | `extracted_params`, `patient_info`, `report_type` — all lab values + demographics. Vision-first for images; text LLM fallback. Anti-hallucination filters applied |
+| `validate_standardize` | `validated_params` — pediatric- + gender-adjusted LOW/NORMAL/HIGH flags, scale-normalized, unit-converted |
 | `model1_interpretation` | `param_interpretation` — severity, % deviation, critical alerts |
 | `model2_patterns` | `patterns`, `risk_assessment` — clinical syndromes + risk score |
 | `model3_context` | `context_analysis` — demographic context, adjusted concerns, urgency |
@@ -216,10 +219,22 @@ cd health_ai_project
 
 **Root `.env`** (backend):
 ```env
+# Primary Groq key — used by heavy reasoning nodes
+# (synthesis, context, recommendations, RAG chat)
 GROQ_API_KEY=your_groq_api_key
-ALLOWED_ORIGINS=http://localhost:3000
+
+# Secondary Groq key — used by extraction + vision + as fallback for primary
+# failures. Doubles effective TPM, isolates rate-limit cascades.
+# If unset, the code falls back to GROQ_API_KEY for all calls.
+GROQ_API_KEY_2=your_second_groq_api_key
+
+# Optional vision-model override (default: meta-llama/llama-4-scout-17b-16e-instruct)
+GROQ_VISION_MODEL=meta-llama/llama-4-scout-17b-16e-instruct
+
+ALLOWED_ORIGINS=http://localhost:3000,https://your-app.vercel.app
 FAISS_INDEX_DIR=faiss_index           # optional, default: faiss_index/
 TESSERACT_CMD=/usr/bin/tesseract      # optional, auto-detected on Windows
+HUGGINGFACE_API_KEY=hf_...            # optional, higher rate limits during build
 ```
 
 **`frontend/.env.local`**:
@@ -290,27 +305,38 @@ alter table reports disable row level security;
 
 ---
 
-## Deployment (AWS EC2)
+## Deployment
 
-CI/CD via `.github/workflows/deploy.yml`. On every push to `main`:
-1. Builds backend + frontend Docker images
-2. Pushes to Docker Hub
-3. SSH into EC2 → `docker-compose -f docker-compose.prod.yml up -d`
+Backend → **Render** (Docker service, `render.yaml` blueprint). Frontend → **Vercel** (Git-linked, `frontend/vercel.json`). Both redeploy automatically on push to `main`.
 
-### Required GitHub Secrets
+### Render (backend)
 
-| Secret | Description |
+Blueprint file: `render.yaml`. First deploy creates the `health-ai-backend` web service from the root `Dockerfile`. Health check: `/health`. Free plan spins down after 15 min idle — use UptimeRobot to ping `/health` every 5 min.
+
+Environment variables to set in Render → Service → **Environment**:
+
+| Key | Value | Notes |
+|---|---|---|
+| `GROQ_API_KEY` | `gsk_...` | Primary Groq key |
+| `GROQ_API_KEY_2` | `gsk_...` | Secondary Groq key (extraction + vision + fallback) |
+| `GROQ_VISION_MODEL` | `meta-llama/llama-4-scout-17b-16e-instruct` | Optional — only set to override default |
+| `ALLOWED_ORIGINS` | `https://your-app.vercel.app` | Comma-separate multiple origins |
+| `HF_TOKEN` | `hf_...` | Optional — higher HuggingFace rate limits during image build |
+| `PORT` | `8000` | Already set by `render.yaml` |
+
+### Vercel (frontend)
+
+Project root: `frontend/`. `frontend/vercel.json` controls build. Environment variables to set in Vercel → Project → **Settings → Environment Variables** (Production + Preview):
+
+| Key | Value |
 |---|---|
-| `DOCKER_USERNAME` | Docker Hub username |
-| `DOCKER_PASSWORD` | Docker Hub access token |
-| `EC2_HOST` | EC2 public IP or DNS |
-| `EC2_USERNAME` | EC2 SSH user |
-| `EC2_KEY` | Private SSH key |
-| `GROQ_API_KEY` | Groq API key |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk publishable key |
-| `CLERK_SECRET_KEY` | Clerk secret key |
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | `pk_live_...` (use `pk_test_...` for Preview) |
+| `CLERK_SECRET_KEY` | `sk_live_...` (use `sk_test_...` for Preview) |
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://xxx.supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `eyJ...` |
+| `FASTAPI_URL` | `https://health-ai-backend.onrender.com` (your Render service URL) |
+
+> **Clerk Production vs Development** — If the deployed frontend still shows a "Development mode" banner, you are using `pk_test_...` in Production. Switch both Clerk values to the `pk_live_` / `sk_live_` pair from the Clerk → Production instance.
 
 ---
 
@@ -346,12 +372,32 @@ CI/CD via `.github/workflows/deploy.yml`. On every push to `main`:
 
 ## LLM Model Configuration
 
-| Role | Groq Model ID | Used in nodes |
-|---|---|---|
-| Quality (70B) | `llama-3.3-70b-versatile` | `extract_parameters`, `model3_context`, `synthesis`, `recommendations` |
-| Fast (8B) | `llama-3.1-8b-instant` | `model2_patterns`, fallback for quality model failures |
+| Role | Groq Model ID | Used in | API key |
+|---|---|---|---|
+| Vision extraction | `meta-llama/llama-4-scout-17b-16e-instruct` | `extract_parameters` (image/photo path) | `GROQ_API_KEY_2` |
+| Medical reasoning | `llama-3.3-70b-versatile` | `extract_parameters` (text fallback), `model1_interpretation`, `model2_patterns`, `model3_context`, `synthesis`, `recommendations`, `rag_node` | `GROQ_API_KEY` (primary) + `GROQ_API_KEY_2` (fallback) |
 
-Separate Groq rate-limit buckets per model — prevents 429 cascades across sequential pipeline calls.
+Dual-key routing: primary key handles reasoning, secondary key handles extraction + vision and acts as fallback on 429s — prevents rate-limit cascades across the pipeline.
+
+## Anti-Hallucination Safeguards
+
+Medical LLMs tend to "helpfully" fill in missing lab values from memory (e.g. adding a plausible Creatinine or Sodium that wasn't in the report). The pipeline blocks this with five layered defences in `nodes/extract_parameters.py`:
+
+1. **Deterministic extractor system prompt** — the clinical-specialist persona was removed; the model is instructed to act as a pure OCR-to-JSON transformer.
+2. **Hard rules A–G** in the user prompt — explicit "never invent", "never impute", "never copy typical values", "never correct implausible-looking digits".
+3. **`_value_in_text()`** — every extracted numeric value must appear literally in `raw_text` (comma/whitespace tolerant). Applied on the text-extraction path.
+4. **`_canonicalize()` strict matching** — minimum alias length 4 + unit+ref requirement for unrecognized names.
+5. **`_looks_like_ocr_garbage()`** — medical-stem/length/token heuristic kills `"Poa"`, `"Copirapams"`, `"Wa ney Lem Yodan Are"`, etc.
+
+## Pediatric Support
+
+`nodes/validate_standardize.py::parse_age_to_years()` handles:
+- `"8 Month(s)"` → 0.67 years → `infant` bucket
+- `"2y 3m"` → 2.25 years → `toddler` bucket
+- `"45 Years"` → 45 years → `adult` bucket
+- `"28 days"` → 0.077 years → `newborn` bucket
+
+Buckets: `newborn` (<28 d), `infant` (28 d–1 y), `toddler` (1–5 y), `child` (6–12 y), `adolescent` (13–17 y), `adult` (18+). Pediatric bucket always beats adult-gender range. If a parameter has no pediatric data in the DB, `resolve_reference()` returns `(None, None)` so the pipeline falls back to the report-embedded range instead of misapplying adult thresholds.
 
 ---
 

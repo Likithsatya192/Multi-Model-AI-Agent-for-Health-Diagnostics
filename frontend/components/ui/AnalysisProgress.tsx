@@ -58,7 +58,7 @@ export function AnalysisProgress({ active }: AnalysisProgressProps) {
           </div>
         </div>
 
-        <h2 className="text-xl font-display font-bold text-white text-center mb-2">
+        <h2 className="text-xl font-display font-bold text-slate-900 text-center mb-2">
           Analyzing your report
         </h2>
         <p className="text-sm text-zinc-500 text-center mb-8">
@@ -66,7 +66,7 @@ export function AnalysisProgress({ active }: AnalysisProgressProps) {
         </p>
 
         {/* Progress bar */}
-        <div className="h-1 bg-white/5 rounded-full mb-6 overflow-hidden">
+        <div className="h-1 bg-slate-200 rounded-full mb-6 overflow-hidden">
           <motion.div
             className="h-full bg-gradient-to-r from-primary to-primaryDark rounded-full"
             animate={{ width: `${progress}%` }}
@@ -86,8 +86,8 @@ export function AnalysisProgress({ active }: AnalysisProgressProps) {
                   done
                     ? "bg-green-500/5 border-green-500/15 text-green-400"
                     : isActive
-                    ? "bg-primary/10 border-primary/20 text-sky-300"
-                    : "bg-white/[0.02] border-white/5 text-zinc-600"
+                    ? "bg-primary/10 border-primary/20 text-primaryGlow"
+                    : "bg-white/[0.02] border-white/5 text-slate-500"
                 }`}
               >
                 {done ? (
@@ -111,7 +111,7 @@ export function AnalysisProgress({ active }: AnalysisProgressProps) {
           })}
         </div>
 
-        <p className="text-center text-xs text-zinc-600 mt-6 font-mono">
+        <p className="text-center text-xs text-slate-500 mt-6 font-mono">
           Elapsed: {mm}:{ss} · Please keep this tab open
         </p>
       </motion.div>
