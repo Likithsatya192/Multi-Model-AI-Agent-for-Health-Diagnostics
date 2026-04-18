@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseServer as supabase } from "@/lib/supabase";
 
 // Allow up to 5 minutes for OCR-heavy PDFs (Vercel/Next.js max)
 export const maxDuration = 300;
@@ -12,7 +12,14 @@ export async function POST(req: NextRequest) {
   const formData = await req.formData();
   const file = formData.get("file") as File | null;
 
-  const FASTAPI_URL = process.env.FASTAPI_URL || "http://localhost:8000";
+  const FASTAPI_URL = process.env.FASTAPI_URL;
+  if (!FASTAPI_URL) {
+    return Response.json(
+      { detail: "Backend URL not configured. Set FASTAPI_URL in environment variables." },
+      { status: 503 }
+    );
+  }
+
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 290_000); // 290s — just under backend 300s
 

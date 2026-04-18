@@ -74,15 +74,21 @@ function riskMeta(score: number) {
   return          { color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", label: "Low" };
 }
 
-function SafeMarkdown({ content }: { content: string }) {
+function SafeMarkdown({ content, isDark }: { content: string; isDark: boolean }) {
+  const text = isDark ? "text-zinc-300" : "text-slate-700";
+  const heading = isDark ? "text-zinc-100" : "text-slate-900";
+  const bold = isDark ? "text-white" : "text-slate-900";
   return (
     <ReactMarkdown
       components={{
-        p:      ({ children }) => <p className="mb-3 last:mb-0 text-sm text-zinc-300 leading-relaxed">{children}</p>,
-        strong: ({ children }) => <strong className="font-semibold text-slate-900">{children}</strong>,
+        p:      ({ children }) => <p className={`mb-3 last:mb-0 text-sm leading-relaxed ${text}`}>{children}</p>,
+        strong: ({ children }) => <strong className={`font-semibold ${bold}`}>{children}</strong>,
         ul:     ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-1">{children}</ul>,
-        li:     ({ children }) => <li className="text-sm text-zinc-300 pl-1">{children}</li>,
-        h3:     ({ children }) => <h3 className="text-base font-display font-bold text-slate-900 mt-4 mb-2">{children}</h3>,
+        ol:     ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-1">{children}</ol>,
+        li:     ({ children }) => <li className={`text-sm pl-1 ${text}`}>{children}</li>,
+        h3:     ({ children }) => <h3 className={`text-base font-display font-bold mt-4 mb-2 ${heading}`}>{children}</h3>,
+        h2:     ({ children }) => <h2 className={`text-lg font-display font-bold mt-4 mb-2 ${heading}`}>{children}</h2>,
+        em:     ({ children }) => <em className={`italic ${text}`}>{children}</em>,
       }}
     >
       {content}
@@ -610,48 +616,68 @@ export default function Dashboard() {
                     className={reportTab === "chat" ? "flex-1 flex flex-col overflow-hidden min-h-0" : "max-w-5xl mx-auto space-y-6 pb-20"}
                   >
                     {/* ── Report Header ── */}
-                    <div className={`flex flex-col md:flex-row items-start md:items-end justify-between gap-5 border-b border-white/5 flex-shrink-0 ${reportTab === "chat" ? "px-6 py-4" : "pb-6"}`}>
-                      <div>
-                        <div className="flex items-center flex-wrap gap-2 mb-2">
-                          <span className="px-3 py-1 rounded-full text-primary text-xs font-bold uppercase tracking-wider"
-                            style={{ background: "rgba(144,224,239,0.35)", border: "1px solid rgba(0,119,182,0.18)" }}>
-                            CBC Report
-                          </span>
-                          <span className="text-zinc-600 text-xs flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {new Date(selectedReport.created_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
-                          </span>
+                    {reportTab === "chat" ? (
+                      /* Compact single-row header in chat tab — maximizes chat vertical space */
+                      <div className="flex items-center justify-between gap-4 px-5 py-3 border-b border-white/5 flex-shrink-0">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <Microscope className="w-4 h-4 text-primary/70 flex-shrink-0" />
+                          <span className="text-sm font-medium text-slate-900 truncate">{selectedReport.title}</span>
+                          <span className="text-zinc-600 text-xs font-mono truncate hidden sm:block">{selectedReport.filename}</span>
                         </div>
-                        <h1 className="text-2xl md:text-3xl font-display font-bold text-slate-900 leading-tight">{selectedReport.title}</h1>
-                        <div className="flex items-center gap-2 mt-2 text-zinc-500">
-                          <FileText className="w-3.5 h-3.5" />
-                          <span className="font-mono text-xs">{selectedReport.filename}</span>
-                        </div>
+                        {(() => {
+                          const rm = riskMeta(selectedReport.risk_score);
+                          return (
+                            <span className={`text-xs font-bold px-2.5 py-1 rounded-full border flex-shrink-0 ${rm.color} ${rm.bg} ${rm.border}`}>
+                              Risk {selectedReport.risk_score}/10 · {rm.label}
+                            </span>
+                          );
+                        })()}
                       </div>
-
-                      {/* Risk score badge */}
-                      {(() => {
-                        const rm = riskMeta(selectedReport.risk_score);
-                        return (
-                          <div
-                            className={`flex items-center gap-4 px-6 py-4 rounded-2xl backdrop-blur-sm flex-shrink-0 ${rm.bg} ${rm.border} border`}
-                          >
-                            <div className="text-right">
-                              <div className={`text-[10px] font-bold uppercase tracking-widest ${rm.color} opacity-70 font-mono`}>Risk Score</div>
-                              <div className={`text-4xl font-display font-bold tabular-nums ${rm.color}`}>{selectedReport.risk_score}<span className="text-lg opacity-50">/10</span></div>
-                              <div className={`text-xs ${rm.color} opacity-60`}>{rm.label} Risk</div>
-                            </div>
-                            <div className={`p-2 rounded-xl ${rm.bg}`}>
-                              <Activity className={`w-7 h-7 ${rm.color}`} />
-                            </div>
+                    ) : (
+                      /* Full header for overview/chart tabs */
+                      <div className="flex flex-col md:flex-row items-start md:items-end justify-between gap-5 border-b border-white/5 pb-6 flex-shrink-0">
+                        <div>
+                          <div className="flex items-center flex-wrap gap-2 mb-2">
+                            <span className="px-3 py-1 rounded-full text-primary text-xs font-bold uppercase tracking-wider"
+                              style={{ background: "rgba(144,224,239,0.35)", border: "1px solid rgba(0,119,182,0.18)" }}>
+                              CBC Report
+                            </span>
+                            <span className="text-zinc-600 text-xs flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {new Date(selectedReport.created_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+                            </span>
                           </div>
-                        );
-                      })()}
-                    </div>
+                          <h1 className="text-2xl md:text-3xl font-display font-bold text-slate-900 leading-tight">{selectedReport.title}</h1>
+                          <div className="flex items-center gap-2 mt-2 text-zinc-500">
+                            <FileText className="w-3.5 h-3.5" />
+                            <span className="font-mono text-xs">{selectedReport.filename}</span>
+                          </div>
+                        </div>
+
+                        {/* Risk score badge */}
+                        {(() => {
+                          const rm = riskMeta(selectedReport.risk_score);
+                          return (
+                            <div
+                              className={`flex items-center gap-4 px-6 py-4 rounded-2xl backdrop-blur-sm flex-shrink-0 ${rm.bg} ${rm.border} border`}
+                            >
+                              <div className="text-right">
+                                <div className={`text-[10px] font-bold uppercase tracking-widest ${rm.color} opacity-70 font-mono`}>Risk Score</div>
+                                <div className={`text-4xl font-display font-bold tabular-nums ${rm.color}`}>{selectedReport.risk_score}<span className="text-lg opacity-50">/10</span></div>
+                                <div className={`text-xs ${rm.color} opacity-60`}>{rm.label} Risk</div>
+                              </div>
+                              <div className={`p-2 rounded-xl ${rm.bg}`}>
+                                <Activity className={`w-7 h-7 ${rm.color}`} />
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
 
                     {/* ── Tab Bar ── */}
                     <div
-                      className={`flex gap-1 p-1 rounded-2xl w-fit flex-shrink-0${reportTab === "chat" ? " mx-6 my-2" : ""}`}
+                      className={`flex gap-1 p-1 rounded-2xl w-fit flex-shrink-0 ${reportTab === "chat" ? "mx-4 md:mx-5 my-2" : ""}`}
                       style={{
                         background: isDark ? "rgba(8, 28, 52, 0.82)" : "rgba(255,255,255,0.88)",
                         border: isDark ? "1px solid rgba(144,224,239,0.12)" : "1px solid rgba(148,163,184,0.18)",
@@ -788,8 +814,8 @@ export default function Dashboard() {
                             </h3>
                             <div className="relative z-10">
                               {Array.isArray(selectedReport.synthesis_report)
-                                ? selectedReport.synthesis_report.map((block, idx) => <SafeMarkdown key={idx} content={block} />)
-                                : <SafeMarkdown content={selectedReport.synthesis_report || ""} />}
+                                ? selectedReport.synthesis_report.map((block, idx) => <SafeMarkdown key={idx} content={block} isDark={isDark} />)
+                                : <SafeMarkdown content={selectedReport.synthesis_report || ""} isDark={isDark} />}
                             </div>
                           </div>
 
