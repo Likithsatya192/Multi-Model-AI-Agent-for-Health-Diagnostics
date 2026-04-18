@@ -127,6 +127,8 @@ export default function SignInPage() {
               formFieldErrorText: "!text-red-400",
               alertText: "!text-red-400",
               otpCodeFieldInput: "!bg-slate-50 !border !border-slate-200 !text-slate-900 !rounded-xl",
+              footer: "!bg-transparent [&>div]:!bg-transparent",
+              badge: "!hidden",
             },
           }}
         />
