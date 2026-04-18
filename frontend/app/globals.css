@@ -434,6 +434,28 @@ body.theme-dark {
   background: #09172c !important;
 }
 
+/* Clerk footer dark override + hide dev badge */
+.theme-dark .cl-footer,
+.theme-dark .cl-footerPages,
+.theme-dark .cl-footerPagesLink,
+.theme-dark [data-localization-key="footerPageLink__privacy"],
+.theme-dark [data-localization-key="footerPageLink__terms"] {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+.cl-footer {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* Hide development mode badge */
+.cl-badge,
+[data-clerk-badge],
+.cl-internal-wkkub3 {
+  display: none !important;
+}
+
 .theme-dark [class~="bg-background"] {
   background-color: #020817 !important;
 }

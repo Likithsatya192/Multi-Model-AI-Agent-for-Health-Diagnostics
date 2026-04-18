@@ -1,7 +1,91 @@
+"use client";
+
 import { SignUp } from "@clerk/nextjs";
 import { HeartPulse, BarChart2, MessageSquare, Sparkles } from "lucide-react";
+import { useTheme } from "@/components/ui/ThemeProvider";
+
+const lightAppearance = {
+  variables: {
+    colorPrimary: "#0077B6",
+    colorBackground: "#ffffff",
+    colorText: "#0f172a",
+    colorTextSecondary: "#64748b",
+    colorInputBackground: "#f8fafc",
+    colorInputText: "#0f172a",
+    colorNeutral: "#cbd5e1",
+    borderRadius: "0.875rem",
+    fontFamily: "Plus Jakarta Sans, ui-sans-serif, system-ui, sans-serif",
+    fontSize: "0.9rem",
+  },
+  elements: {
+    rootBox: "w-full max-w-md",
+    card: "!bg-white/95 !backdrop-blur-2xl !border !border-slate-200 !shadow-[0_24px_60px_rgba(0,119,182,0.12),0_0_0_1px_rgba(0,180,216,0.08)] !rounded-3xl",
+    headerTitle: "!text-slate-900 !font-display !tracking-tight",
+    headerSubtitle: "!text-slate-500",
+    socialButtonsBlockButton: "!bg-slate-50 !border !border-slate-200 !text-slate-900 hover:!bg-slate-100 !rounded-xl !transition-all",
+    socialButtonsBlockButtonText: "!text-slate-900 !font-medium",
+    dividerLine: "!bg-slate-200",
+    dividerText: "!text-slate-400 !text-xs",
+    formFieldLabel: "!text-slate-500 !text-xs !font-medium !tracking-wide",
+    formFieldAction: "!hidden",
+    formFieldInput: "!bg-slate-50 !border !border-slate-200 !text-slate-900 !rounded-xl focus:!border-[#0077B6]/50 focus:!ring-1 focus:!ring-[#00B4D8]/20 !transition-all",
+    formButtonPrimary: "!bg-gradient-to-r !from-[#00B4D8] !to-[#0077B6] !text-white !font-semibold !rounded-xl !shadow-[0_4px_20px_rgba(0,119,182,0.25)] hover:!shadow-[0_8px_28px_rgba(0,119,182,0.35)] hover:!brightness-110 !transition-all",
+    footerActionText: "!text-slate-500",
+    footerActionLink: "!text-[#0077B6] hover:!text-[#03045E] !font-medium",
+    identityPreviewText: "!text-slate-900",
+    identityPreviewEditButton: "!text-[#00B4D8]",
+    formFieldSuccessText: "!text-emerald-400",
+    formFieldErrorText: "!text-red-400",
+    alertText: "!text-red-400",
+    otpCodeFieldInput: "!bg-slate-50 !border !border-slate-200 !text-slate-900 !rounded-xl",
+    footer: "!bg-transparent [&>div]:!bg-transparent",
+    badge: "!hidden",
+  },
+};
+
+const darkAppearance = {
+  variables: {
+    colorPrimary: "#00B4D8",
+    colorBackground: "#09172c",
+    colorText: "#e6f7fb",
+    colorTextSecondary: "#90b4c8",
+    colorInputBackground: "#0d1f38",
+    colorInputText: "#e6f7fb",
+    colorNeutral: "#1e3a5f",
+    borderRadius: "0.875rem",
+    fontFamily: "Plus Jakarta Sans, ui-sans-serif, system-ui, sans-serif",
+    fontSize: "0.9rem",
+  },
+  elements: {
+    rootBox: "w-full max-w-md",
+    card: "!bg-[#09172c]/95 !backdrop-blur-2xl !border !border-[#1e3a5f] !shadow-[0_24px_60px_rgba(0,0,0,0.4)] !rounded-3xl",
+    headerTitle: "!text-[#e6f7fb] !font-display !tracking-tight",
+    headerSubtitle: "!text-[#90b4c8]",
+    socialButtonsBlockButton: "!bg-[#0d1f38] !border !border-[#1e3a5f] !text-[#e6f7fb] hover:!bg-[#122840] !rounded-xl !transition-all",
+    socialButtonsBlockButtonText: "!text-[#e6f7fb] !font-medium",
+    dividerLine: "!bg-[#1e3a5f]",
+    dividerText: "!text-[#90b4c8] !text-xs",
+    formFieldLabel: "!text-[#90b4c8] !text-xs !font-medium !tracking-wide",
+    formFieldAction: "!hidden",
+    formFieldInput: "!bg-[#0d1f38] !border !border-[#1e3a5f] !text-[#e6f7fb] !rounded-xl focus:!border-[#00B4D8]/50 focus:!ring-1 focus:!ring-[#00B4D8]/20 !transition-all",
+    formButtonPrimary: "!bg-gradient-to-r !from-[#00B4D8] !to-[#0077B6] !text-white !font-semibold !rounded-xl !shadow-[0_4px_20px_rgba(0,180,216,0.25)] hover:!brightness-110 !transition-all",
+    footerActionText: "!text-[#90b4c8]",
+    footerActionLink: "!text-[#00B4D8] hover:!text-[#90e0ef] !font-medium",
+    identityPreviewText: "!text-[#e6f7fb]",
+    identityPreviewEditButton: "!text-[#00B4D8]",
+    formFieldSuccessText: "!text-emerald-400",
+    formFieldErrorText: "!text-red-400",
+    alertText: "!text-red-400",
+    otpCodeFieldInput: "!bg-[#0d1f38] !border !border-[#1e3a5f] !text-[#e6f7fb] !rounded-xl",
+    footer: "!bg-transparent [&>div]:!bg-transparent",
+    badge: "!hidden",
+  },
+};
 
 export default function SignUpPage() {
+  const { theme } = useTheme();
+  const appearance = theme === "dark" ? darkAppearance : lightAppearance;
+
   return (
     <div className="min-h-screen bg-background flex overflow-hidden relative">
 
@@ -29,7 +113,6 @@ export default function SignUpPage() {
 
       {/* ── Left: Clerk sign-up form ── */}
       <div className="flex-1 flex items-center justify-center p-6 lg:p-12 relative z-10">
-        {/* Mobile logo */}
         <div className="absolute top-6 left-6 flex items-center gap-2 lg:hidden">
           <div className="p-1.5 bg-primary/15 rounded-xl border border-primary/20">
             <HeartPulse className="w-4 h-4 text-primary" />
@@ -37,51 +120,11 @@ export default function SignUpPage() {
           <span className="font-display font-bold text-slate-900 text-sm">Health AI</span>
         </div>
 
-        <SignUp
-          appearance={{
-            variables: {
-              colorPrimary: "#0077B6",
-              colorBackground: "#ffffff",
-              colorText: "#0f172a",
-              colorTextSecondary: "#64748b",
-              colorInputBackground: "#f8fafc",
-              colorInputText: "#0f172a",
-              colorNeutral: "#cbd5e1",
-              borderRadius: "0.875rem",
-              fontFamily: "Plus Jakarta Sans, ui-sans-serif, system-ui, sans-serif",
-              fontSize: "0.9rem",
-            },
-            elements: {
-              rootBox: "w-full max-w-md",
-              card: "!bg-white/95 !backdrop-blur-2xl !border !border-slate-200 !shadow-[0_24px_60px_rgba(0,119,182,0.12),0_0_0_1px_rgba(0,180,216,0.08)] !rounded-3xl",
-              headerTitle: "!text-slate-900 !font-display !tracking-tight",
-              headerSubtitle: "!text-slate-500",
-              socialButtonsBlockButton: "!bg-slate-50 !border !border-slate-200 !text-slate-900 hover:!bg-slate-100 !rounded-xl !transition-all",
-              socialButtonsBlockButtonText: "!text-slate-900 !font-medium",
-              dividerLine: "!bg-slate-200",
-              dividerText: "!text-slate-400 !text-xs",
-              formFieldLabel: "!text-slate-500 !text-xs !font-medium !tracking-wide",
-              formFieldAction: "!hidden",
-              formFieldInput: "!bg-slate-50 !border !border-slate-200 !text-slate-900 !rounded-xl focus:!border-[#0077B6]/50 focus:!ring-1 focus:!ring-[#00B4D8]/20 !transition-all",
-              formButtonPrimary: "!bg-gradient-to-r !from-[#00B4D8] !to-[#0077B6] !text-white !font-semibold !rounded-xl !shadow-[0_4px_20px_rgba(0,119,182,0.25)] hover:!shadow-[0_8px_28px_rgba(0,119,182,0.35)] hover:!brightness-110 !transition-all",
-              footerActionText: "!text-slate-500",
-              footerActionLink: "!text-[#0077B6] hover:!text-[#03045E] !font-medium",
-              identityPreviewText: "!text-slate-900",
-              identityPreviewEditButton: "!text-[#00B4D8]",
-              formFieldSuccessText: "!text-emerald-400",
-              formFieldErrorText: "!text-red-400",
-              alertText: "!text-red-400",
-              otpCodeFieldInput: "!bg-slate-50 !border !border-slate-200 !text-slate-900 !rounded-xl",
-              footer: "!bg-transparent [&>div]:!bg-transparent",
-              badge: "!hidden",
-            },
-          }}
-        />
+        <SignUp appearance={appearance} />
       </div>
 
       {/* ── Right brand panel (desktop only) ── */}
       <div className="hidden lg:flex lg:w-[52%] relative flex-col justify-between p-16 border-l border-white/5">
-        {/* Logo */}
         <div className="flex items-center gap-3 justify-end">
           <div>
             <span className="font-display font-bold text-slate-900 text-lg block leading-tight text-right">Health AI</span>
@@ -92,7 +135,6 @@ export default function SignUpPage() {
           </div>
         </div>
 
-        {/* Hero text */}
         <div className="space-y-8 animate-slide-up">
           <div>
             <h1 className="text-5xl font-display font-bold text-slate-900 leading-tight mb-4">
@@ -110,7 +152,6 @@ export default function SignUpPage() {
             </p>
           </div>
 
-          {/* Stats */}
           <div className="grid grid-cols-2 gap-4">
             {[
               { value: "30+", label: "CBC parameters", color: "text-primary" },
