@@ -68,6 +68,23 @@ function groupByDate(reports: ReportSummary[]) {
   return groups;
 }
 
+function getReportType(title: string, filename: string): string {
+  const text = (title + " " + filename).toLowerCase();
+  if (text.includes("cbc") || text.includes("complete blood count") || text.includes("blood count")) return "CBC";
+  if (text.includes("lipid") || text.includes("cholesterol")) return "Lipid";
+  if (text.includes("cmp") || text.includes("bmp") || text.includes("metabolic")) return "Metabolic";
+  if (text.includes("thyroid") || text.includes("tsh") || text.includes("t3") || text.includes("t4")) return "Thyroid";
+  if (text.includes("liver") || text.includes("lft") || text.includes("hepatic") || text.includes("sgpt") || text.includes("sgot")) return "LFT";
+  if (text.includes("kidney") || text.includes("renal") || text.includes("creatinine") || text.includes("urea")) return "Renal";
+  if (text.includes("hba1c") || text.includes("glucose") || text.includes("diabetes")) return "Glucose";
+  if (text.includes("urine") || text.includes("urinalysis")) return "Urine";
+  if (text.includes("iron") || text.includes("ferritin")) return "Iron";
+  if (text.includes("vitamin") || text.includes("vit ") || text.includes("b12") || text.includes("vit d")) return "Vitamin";
+  if (text.includes("coagulation") || text.includes("pt/inr") || text.includes("aptt")) return "Coag";
+  if (text.includes("hormone") || text.includes("cortisol") || text.includes("testosterone") || text.includes("estrogen")) return "Hormone";
+  return "Lab";
+}
+
 function riskMeta(score: number) {
   if (score > 6) return { color: "text-red-400",    bg: "bg-red-500/10",    border: "border-red-500/20",    label: "High" };
   if (score > 3) return { color: "text-yellow-400", bg: "bg-yellow-500/10", border: "border-yellow-500/20", label: "Moderate" };
@@ -267,8 +284,8 @@ export default function Dashboard() {
               }}
             >
               {/* Logo row */}
-              <div className="p-4 flex-shrink-0 border-b" style={{ borderColor: "rgba(148,163,184,0.18)" }}>
-                <Link href="/" className="flex items-center gap-3 px-1 hover:opacity-80 transition-opacity">
+              <div className="p-4 flex-shrink-0 border-b flex items-center justify-between gap-2" style={{ borderColor: "rgba(148,163,184,0.18)" }}>
+                <Link href="/" className="flex items-center gap-3 px-1 hover:opacity-80 transition-opacity flex-shrink-0">
                   <div className="relative p-2 bg-primary/15 rounded-xl border border-primary/20">
                     <HeartPulse className="text-primary w-4.5 h-4.5" />
                     <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-accent animate-pulse" />
@@ -278,6 +295,13 @@ export default function Dashboard() {
                     <span className="text-[10px] text-primary/50 font-mono">CBC Analyzer</span>
                   </div>
                 </Link>
+                <button
+                  onClick={() => setSidebarOpen((v) => !v)}
+                  aria-label="Toggle sidebar"
+                  className="p-2 rounded-xl hover:bg-white/5 text-zinc-500 hover:text-slate-900 transition-colors flex-shrink-0"
+                >
+                  <Menu className="w-4 h-4" />
+                </button>
               </div>
 
               {/* New Analysis button */}
@@ -286,12 +310,18 @@ export default function Dashboard() {
                   onClick={handleNewAnalysis}
                   className="w-full flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group"
                   style={{
-                    background: "linear-gradient(135deg, rgba(144,224,239,0.32), rgba(0,180,216,0.1))",
-                    border: "1px solid rgba(0,119,182,0.2)",
-                    color: "#0077B6",
+                    background: isDark
+                      ? "linear-gradient(135deg, rgba(0,180,216,0.22), rgba(144,224,239,0.1))"
+                      : "linear-gradient(135deg, rgba(144,224,239,0.32), rgba(0,180,216,0.1))",
+                    border: isDark ? "1px solid rgba(144,224,239,0.28)" : "1px solid rgba(0,119,182,0.2)",
+                    color: isDark ? "#90E0EF" : "#0077B6",
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "linear-gradient(135deg, rgba(144,224,239,0.44), rgba(0,180,216,0.16))")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "linear-gradient(135deg, rgba(144,224,239,0.32), rgba(0,180,216,0.1))")}
+                  onMouseEnter={e => (e.currentTarget.style.background = isDark
+                    ? "linear-gradient(135deg, rgba(0,180,216,0.34), rgba(144,224,239,0.16))"
+                    : "linear-gradient(135deg, rgba(144,224,239,0.44), rgba(0,180,216,0.16))")}
+                  onMouseLeave={e => (e.currentTarget.style.background = isDark
+                    ? "linear-gradient(135deg, rgba(0,180,216,0.22), rgba(144,224,239,0.1))"
+                    : "linear-gradient(135deg, rgba(144,224,239,0.32), rgba(0,180,216,0.1))")}
                 >
                   <PlusCircle className="w-4 h-4" />
                   New Analysis
@@ -339,7 +369,7 @@ export default function Dashboard() {
                                   ? "1px solid rgba(0,119,182,0.22)"
                                   : "1px solid transparent",
                               }}
-                              onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "rgba(226,232,240,0.55)"; }}
+                              onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.08)" : "rgba(226,232,240,0.55)"; }}
                               onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
                             >
                               {/* Active indicator line */}
@@ -357,7 +387,15 @@ export default function Dashboard() {
                                 </button>
                               </div>
                               <div className="flex items-center gap-2">
-                                <span className="text-[11px] text-zinc-600 font-mono truncate flex-1">{report.filename}</span>
+                                <span
+                                  className="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider flex-shrink-0"
+                                  style={{
+                                    background: isDark ? "rgba(0,180,216,0.18)" : "rgba(144,224,239,0.4)",
+                                    border: isDark ? "1px solid rgba(0,180,216,0.3)" : "1px solid rgba(0,119,182,0.18)",
+                                    color: isDark ? "#90E0EF" : "#0077B6",
+                                  }}
+                                >{getReportType(report.title, report.filename)}</span>
+                                <span className="text-[11px] text-zinc-500 font-mono truncate flex-1">{report.filename}</span>
                                 <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border flex-shrink-0 ${rm.color} ${rm.bg} ${rm.border}`}>
                                   {report.risk_score}/10
                                 </span>
@@ -378,7 +416,7 @@ export default function Dashboard() {
                   onClick={() => setShowSettings(true)}
                   role="button"
                   aria-label="Open settings"
-                  onMouseEnter={e => (e.currentTarget.style.background = "rgba(226,232,240,0.55)")}
+                  onMouseEnter={e => (e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.08)" : "rgba(226,232,240,0.55)")}
                   onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                 >
                   <div className="w-8 h-8 rounded-full bg-zinc-800 border border-white/10 overflow-hidden flex-shrink-0">
@@ -401,37 +439,25 @@ export default function Dashboard() {
           )}
         </AnimatePresence>
 
-        {/* ════════════════════ MAIN AREA ════════════════════ */}
-        <div className="flex-1 flex flex-col h-full overflow-hidden min-w-0">
-
-          {/* Top bar */}
-          <div
-            className="flex items-center gap-3 px-4 py-3 flex-shrink-0 border-b"
+        {/* Floating sidebar toggle — only when sidebar closed */}
+        {!sidebarOpen && (
+          <button
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Open sidebar"
+            className="absolute top-3 left-3 z-20 p-2 rounded-xl transition-all duration-200"
             style={{
-              background: isDark ? "rgba(5,18,37,0.82)" : "rgba(255,255,255,0.78)",
-              backdropFilter: "blur(20px)",
-              borderColor: isDark ? "rgba(144,224,239,0.12)" : "rgba(148,163,184,0.18)",
+              background: isDark ? "rgba(6,18,37,0.92)" : "rgba(255,255,255,0.92)",
+              border: isDark ? "1px solid rgba(144,224,239,0.2)" : "1px solid rgba(148,163,184,0.22)",
+              color: isDark ? "#90E0EF" : "#0077B6",
+              boxShadow: isDark ? "0 4px 16px rgba(0,0,0,0.4)" : "0 4px 16px rgba(0,0,0,0.08)",
             }}
           >
-            <button
-              onClick={() => setSidebarOpen((v) => !v)}
-              aria-label="Toggle sidebar"
-              className="p-2 rounded-xl hover:bg-white/5 text-zinc-500 hover:text-slate-900 transition-colors"
-            >
-              <Menu className="w-4 h-4" />
-            </button>
-            <div className="flex-1 min-w-0">
-              <span className="text-sm font-medium text-zinc-400 truncate block">
-                {view === "upload" ? "New Analysis" : selectedReport?.title ?? "Loading..."}
-              </span>
-            </div>
-            {view === "report" && selectedReport && (
-              <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border flex-shrink-0 ${riskMeta(selectedReport.risk_score).color} ${riskMeta(selectedReport.risk_score).bg} ${riskMeta(selectedReport.risk_score).border}`}>
-                <div className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
-                Risk {selectedReport.risk_score}/10
-              </div>
-            )}
-          </div>
+            <Menu className="w-4 h-4" />
+          </button>
+        )}
+
+        {/* ════════════════════ MAIN AREA ════════════════════ */}
+        <div className="flex-1 flex flex-col h-full overflow-hidden min-w-0">
 
           {/* Scrollable content */}
           <div className={`flex-1 min-h-0 ${view === "report" && reportTab === "chat" ? "overflow-hidden flex flex-col" : "overflow-y-auto custom-scrollbar"}`}>
@@ -451,7 +477,11 @@ export default function Dashboard() {
                     {/* Header */}
                     <div className="text-center mb-10">
                       <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold mb-5"
-                        style={{ background: "rgba(144,224,239,0.35)", border: "1px solid rgba(0,119,182,0.18)", color: "#0077B6" }}>
+                        style={{
+                          background: isDark ? "rgba(0,180,216,0.22)" : "rgba(144,224,239,0.35)",
+                          border: isDark ? "1px solid rgba(144,224,239,0.32)" : "1px solid rgba(0,119,182,0.18)",
+                          color: isDark ? "#90E0EF" : "#0077B6",
+                        }}>
                         <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                         AI-Powered Analysis
                         <Sparkles className="w-3 h-3" />
@@ -615,14 +645,15 @@ export default function Dashboard() {
                     transition={{ duration: 0.35 }}
                     className={reportTab === "chat" ? "flex-1 flex flex-col overflow-hidden min-h-0" : "max-w-5xl mx-auto space-y-6 pb-20"}
                   >
+
                     {/* ── Report Header ── */}
                     {reportTab === "chat" ? (
-                      /* Compact single-row header in chat tab — maximizes chat vertical space */
+                      /* Compact single-row header in chat tab */
                       <div className="flex items-center justify-between gap-4 px-5 py-3 border-b border-white/5 flex-shrink-0">
                         <div className="flex items-center gap-2.5 min-w-0">
                           <Microscope className="w-4 h-4 text-primary/70 flex-shrink-0" />
                           <span className="text-sm font-medium text-slate-900 truncate">{selectedReport.title}</span>
-                          <span className="text-zinc-600 text-xs font-mono truncate hidden sm:block">{selectedReport.filename}</span>
+                          <span className="text-zinc-500 text-xs font-mono truncate hidden sm:block">{selectedReport.filename}</span>
                         </div>
                         {(() => {
                           const rm = riskMeta(selectedReport.risk_score);
@@ -642,13 +673,13 @@ export default function Dashboard() {
                               style={{ background: "rgba(144,224,239,0.35)", border: "1px solid rgba(0,119,182,0.18)" }}>
                               CBC Report
                             </span>
-                            <span className="text-zinc-600 text-xs flex items-center gap-1">
+                            <span className={`text-xs flex items-center gap-1 ${isDark ? "text-zinc-400" : "text-zinc-600"}`}>
                               <Clock className="w-3 h-3" />
                               {new Date(selectedReport.created_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
                             </span>
                           </div>
-                          <h1 className="text-2xl md:text-3xl font-display font-bold text-slate-900 leading-tight">{selectedReport.title}</h1>
-                          <div className="flex items-center gap-2 mt-2 text-zinc-500">
+                          <h1 className={`text-2xl md:text-3xl font-display font-bold leading-tight ${isDark ? "text-zinc-100" : "text-slate-900"}`}>{selectedReport.title}</h1>
+                          <div className={`flex items-center gap-2 mt-2 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}>
                             <FileText className="w-3.5 h-3.5" />
                             <span className="font-mono text-xs">{selectedReport.filename}</span>
                           </div>
