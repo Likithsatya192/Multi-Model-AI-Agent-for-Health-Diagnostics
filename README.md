@@ -6,13 +6,13 @@ An AI-powered blood report analyzer that handles **any blood test panel** from a
 
 ## Features
 
-- **Universal Report Support** — Analyzes CBC, LFT, KFT/RFT, Lipid Panel, Thyroid, Coagulation, Iron Studies, HbA1c/Diabetes, Electrolytes, and mixed/comprehensive panels. Not limited to CBC.
+- **Universal Report Support** — Analyzes CBC, LFT, KFT/RFT, Lipid Panel, Thyroid, Coagulation, Iron Studies, HbA1c/Diabetes, Electrolytes, Hormones (reproductive/adrenal/pituitary), Cardiac Markers, Tumour Markers, Autoimmune/Rheumatology, Nutritional (Vitamins/Minerals), Bone Metabolism, Pancreatic, and mixed/comprehensive panels. Not limited to CBC.
 - **Worldwide Lab Format Compatibility** — Handles Indian path labs (NABL), US (CLIA), European (ISO 15189), and other regional formats with different number conventions (incl. Indian lakh `3,41,000`), unit styles, and table layouts.
 - **Vision-First Extraction** — Phone photos of lab reports bypass Tesseract entirely and go to a multimodal Groq model (`llama-4-scout-17b-16e-instruct`). OCR is auto-detected as garbage via medical-token density and the pipeline falls over to the vision path; no user toggle needed.
 - **Anti-Hallucination Safeguards** — Deterministic extractor system prompt (no clinical persona), hard rules that forbid inventing/imputing/"correcting" values, post-extraction value-in-text verification, OCR-garbage name filter. Eliminates fabricated parameters (Creatinine, Sodium, etc.) that generic medical LLMs often add.
 - **Pediatric-Aware Validation** — Age parsed from the report header (`8 Month(s)`, `2y 3m`, `45 Years`) into buckets (newborn / infant / toddler / child / adolescent / adult). Pediatric buckets override adult-gender ranges for CBC parameters (Hgb, RBC, PCV, MCV, MCH, MCHC, WBC, Neutrophils, Lymphocytes) so an 8-month-old is never flagged against adult thresholds.
-- **Dynamic Parameter Extraction** — 483-alias dictionary maps every known raw lab name variant (SGPT→ALT, TLC→Total WBC, FBS→Fasting Blood Glucose, etc.) to canonical names. Unknown parameters pass through only when supported by an embedded reference range AND unit — prevents OCR gibberish from reaching the UI.
-- **Gender + Age-Adjusted Reference Database** — Curated reference ranges for CBC, LFT, KFT, Lipid, Thyroid, Diabetes, Iron Studies, Coagulation, Electrolytes, Vitamins, and more.
+- **Dynamic Parameter Extraction** — 680+ alias dictionary maps every known raw lab name variant (SGPT→ALT, TLC→Total WBC, FBS→Fasting Blood Glucose, etc.) to canonical names across all panels worldwide. Unknown parameters pass through only when supported by an embedded reference range AND unit — prevents OCR gibberish from reaching the UI.
+- **Gender + Age-Adjusted Reference Database** — 174-parameter curated reference ranges covering CBC, LFT, KFT, Lipid, Thyroid, Diabetes, Iron Studies, Coagulation, Electrolytes, Hormones, Cardiac Markers, Tumour Markers, Vitamins, Minerals, Bone Metabolism, Autoimmune, and more. SI ↔ conventional unit conversions for 100+ parameter/unit combinations (mmol/L↔mg/dL, µkat/L↔U/L, pmol/L↔pg/mL, etc.).
 - **Multi-Model Clinical Analysis** — Severity classification (mild/moderate/severe/critical), percent deviation from reference midpoint, pattern detection across all panels, risk scoring (1–10), age/gender-adjusted contextual analysis, and prioritized recommendations.
 - **Enhanced OCR Fallback** — Otsu binarization, deskew correction, multi-PSM Tesseract strategy (PSM 6/4/11), 300 DPI rendering. Used for native-text PDFs or when vision path is unavailable.
 - **Dual-Key Groq Routing** — Primary key for heavy reasoning (synthesis/context/recommendations/RAG), secondary key for extraction + vision. Doubles effective TPM, isolates rate-limit cascades.
@@ -83,7 +83,7 @@ flowchart TD
 |---|---|
 | `ingest_and_ocr` | `raw_text` — native PDF text or multi-page Tesseract OCR (used for PDFs with embedded text; vision path bypasses this for photos) |
 | `extract_parameters` | `extracted_params`, `patient_info`, `report_type` — all lab values + demographics. Vision-first for images; text LLM fallback. Anti-hallucination filters applied |
-| `validate_standardize` | `validated_params` — pediatric- + gender-adjusted LOW/NORMAL/HIGH flags, scale-normalized, unit-converted |
+| `validate_standardize` | `validated_params` — pediatric- + gender-adjusted LOW/NORMAL/HIGH flags, scale-normalized, SI↔conventional unit-converted (174-param DB) |
 | `model1_interpretation` | `param_interpretation` — severity, % deviation, critical alerts |
 | `model2_patterns` | `patterns`, `risk_assessment` — clinical syndromes + risk score |
 | `model3_context` | `context_analysis` — demographic context, adjusted concerns, urgency |
@@ -94,18 +94,22 @@ flowchart TD
 
 | Panel | Parameters Extracted |
 |---|---|
-| **CBC / FBC** | Hb, RBC, PCV/HCT, MCV, MCH, MCHC, RDW, WBC/TLC, Platelets, Differential (N/L/M/E/B %), Absolute counts, ESR, MPV, PDW, PCT |
-| **LFT** | ALT/SGPT, AST/SGOT, ALP, GGT, Total/Direct/Indirect Bilirubin, Total Protein, Albumin, Globulin, A/G Ratio, LDH |
-| **KFT / RFT** | Creatinine, BUN, Blood Urea, Uric Acid, eGFR |
+| **CBC / FBC** | Hb, RBC, PCV/HCT, MCV, MCH, MCHC, RDW, WBC/TLC, Platelets, Differential (N/L/M/E/B %), Absolute counts, ESR, MPV, PDW, PCT, Reticulocytes |
+| **LFT** | ALT/SGPT, AST/SGOT, ALP, GGT, Total/Direct/Indirect Bilirubin, Total Protein, Albumin, Globulin, A/G Ratio, LDH, Ammonia, Ceruloplasmin |
+| **KFT / RFT** | Creatinine, BUN, Blood Urea, Uric Acid, eGFR, Cystatin C, Urine Creatinine, Microalbumin, ACR |
 | **Electrolytes** | Na, K, Cl, HCO₃, Ca, Phosphorus, Mg |
-| **Lipid Panel** | Total Cholesterol, Triglycerides, HDL, LDL, VLDL, Non-HDL, TC/HDL Ratio |
-| **Thyroid** | TSH, Free T3, Total T3, Free T4, Total T4 |
-| **Diabetes** | FBS/FPG, PPBS, Random Glucose, HbA1c |
-| **Iron Studies** | Serum Iron, TIBC, Transferrin Saturation, Ferritin |
+| **Lipid Panel** | Total Cholesterol, Triglycerides, HDL, LDL, VLDL, Non-HDL, TC/HDL Ratio, ApoA1, ApoB, Lipoprotein(a), Homocysteine |
+| **Thyroid** | TSH, Free T3, Total T3, Free T4, Total T4, Anti-TPO, Anti-Tg |
+| **Diabetes** | FBS/FPG, PPBS, Random Glucose, HbA1c, Insulin, C-Peptide |
+| **Iron Studies** | Serum Iron, TIBC, Transferrin Saturation, Ferritin, Transferrin |
 | **Coagulation** | PT, INR, aPTT, Fibrinogen, D-Dimer, Bleeding/Clotting Time |
-| **Inflammatory** | CRP, hsCRP |
-| **Vitamins** | Vitamin D, Vitamin B12, Folate |
-| **Other** | Amylase, Lipase, PSA |
+| **Inflammatory / Cardiac** | CRP, hsCRP, Troponin I/T, hsTroponin, BNP, NT-proBNP, CK, CK-MB, Myoglobin, Lactic Acid |
+| **Hormones** | FSH, LH, Prolactin, Estradiol, Progesterone, Total/Free Testosterone, DHEA-S, SHBG, AMH, Beta-hCG, Cortisol, ACTH, Aldosterone, Renin, Growth Hormone, IGF-1, PTH |
+| **Vitamins / Minerals** | Vitamin D, B12, Folate, A, E, C; Zinc, Copper, Selenium, Magnesium |
+| **Tumour Markers** | CEA, CA-125, CA 19-9, CA 15-3, AFP, PSA, NSE, Beta-2 Microglobulin |
+| **Autoimmune** | RF, Anti-CCP, ANA, Anti-dsDNA, C3/C4 Complement, ASO, IgG, IgA, IgM, IgE |
+| **Bone Metabolism** | PTH, Osteocalcin, C-Telopeptide (CTX), Bone ALP, Vitamin D |
+| **Pancreatic / Metabolic** | Amylase, Lipase, Ammonia, Lactic Acid, Uric Acid |
 
 ### Pattern Detection (model2_patterns)
 
@@ -115,8 +119,17 @@ flowchart TD
 | **LFT** | Hepatocellular Injury, Cholestatic Pattern, Obstructive Jaundice, Hepatic Synthetic Defect, Mixed Liver Disease |
 | **KFT** | Acute/Chronic Kidney Disease, Hyperuricemia, Hyponatremia, Hyperkalemia |
 | **Lipid** | Dyslipidemia, Hypertriglyceridemia, Low HDL Syndrome, Metabolic Syndrome |
-| **Thyroid** | Hypothyroidism, Hyperthyroidism, Subclinical Hypo/Hyperthyroid |
+| **Thyroid** | Hypothyroidism, Hyperthyroidism, Subclinical Hypo/Hyperthyroid, Autoimmune Thyroid |
 | **Diabetes** | Impaired Fasting Glucose, Diabetes Mellitus, Poor Glycemic Control |
+| **Iron Studies** | Iron Deficiency, Iron Overload, Anaemia of Chronic Disease |
+| **Coagulation** | Coagulopathy, DIC screen, Anticoagulant effect, Thrombosis risk |
+| **Cardiac** | Acute MI (Troponin), Heart Failure (BNP/NT-proBNP), Rhabdomyolysis, Elevated Homocysteine |
+| **Hormones** | Hyperprolactinemia, Hypogonadism, Polycystic Ovary (PCOS), Hypercortisolism, Adrenal Insufficiency, Hyperaldosteronism |
+| **Tumour Markers** | Elevated CEA/CA-125/CA 19-9/AFP/PSA/Beta-hCG (screening context with clinical referral) |
+| **Autoimmune** | Rheumatoid Arthritis (RF+Anti-CCP), SLE screen (ANA+Anti-dsDNA), Complement Consumption, Streptococcal infection (ASO) |
+| **Nutritional** | Vitamin D/B12/Folate deficiency, Megaloblastic Anemia, Zinc deficiency, Malnutrition |
+| **Bone** | Hyperparathyroidism, Hypoparathyroidism, Osteoporosis Markers, Paget's Disease |
+| **Metabolic / Pancreatic** | Acute Pancreatitis, Lactic Acidosis, Hyperammonemia, Hyperuricemia/Gout |
 
 ### RAG Chat Flow
 
@@ -154,7 +167,7 @@ health_ai_project/
 ├── nodes/
 │   ├── ingest_and_ocr.py         # PDF/image ingestion
 │   ├── extract_parameters.py     # Universal extraction · 483 aliases · dynamic schema
-│   ├── validate_standardize.py   # 84-param DB + report ref range fallback
+│   ├── validate_standardize.py   # 174-param DB + report ref range fallback + SI↔conventional unit conversion
 │   ├── model1_interpretation.py  # Severity + critical alerts
 │   ├── model2_patterns.py        # Multi-panel pattern detection (CBC/LFT/KFT/Lipid/Thyroid/Diabetes)
 │   ├── model3_context.py         # Demographic context + urgency
@@ -168,7 +181,7 @@ health_ai_project/
 │   └── reference_ranges.py
 │
 ├── configs/
-│   └── reference_ranges.json     # 84 parameters across all panels (gender-adjusted)
+│   └── reference_ranges.json     # 174 parameters across all panels (gender-adjusted, SI-converted)
 │
 └── frontend/
     ├── app/

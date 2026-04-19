@@ -73,7 +73,7 @@ def model3_context_node(state):
     from langchain_core.output_parsers import PydanticOutputParser
     parser = PydanticOutputParser(pydantic_object=ContextOutput)
 
-    prompt = f"""You are a clinical hematologist AI providing contextual analysis of a CBC blood report.
+    prompt = f"""You are a clinical AI providing contextual analysis of a medical laboratory report.
 Your analysis MUST be grounded in the specific patient demographics and lab values provided.
 Do NOT give generic advice. Every statement must reference the actual data below.
 
@@ -84,7 +84,7 @@ Age    : {age}
 Gender : {gender}
 
 ═══════════════════════════════════════
-CBC RESULTS WITH CLINICAL FLAGS
+LAB RESULTS WITH CLINICAL FLAGS
 ═══════════════════════════════════════
 {params_str}
 
@@ -103,20 +103,31 @@ CLINICAL CONTEXT RULES
 ═══════════════════════════════════════
 
 AGE-SPECIFIC ADJUSTMENTS:
-- Pediatric (<18 yrs): Reference ranges differ significantly. Leukocytosis is common with infection.
-  Lower Hgb thresholds. Platelet values trend higher.
-- Reproductive-age female (18-45 F): LOW Hemoglobin/Iron pattern — consider menstrual loss,
-  pregnancy status. Iron deficiency anemia is most common cause.
-- Elderly (>65): Mild anemia is common but still warrants evaluation.
-  Thrombocytopenia risk with age. WBC interpretation needs baseline context.
+- Pediatric (<18 yrs): Reference ranges differ significantly from adult norms across all panels.
+  Leukocytosis common with infection; lower Hgb thresholds; higher platelet values.
+  Liver enzymes (ALT/AST), creatinine, and electrolyte ranges are age-dependent.
+- Reproductive-age female (18-45 F): LOW Hemoglobin/Iron — consider menstrual loss or pregnancy.
+  Thyroid disorders more prevalent; lipid risk lower than males of same age.
+- Elderly (>65): Mild anemia common but warrants evaluation. Renal function declines with age
+  (creatinine may appear normal despite reduced GFR). Lipid and thyroid profiles need context.
 
 GENDER-SPECIFIC ADJUSTMENTS:
-- Male: Hemoglobin normal range is higher (13.5-17.5 g/dL). PCV accordingly higher.
-- Female: Hemoglobin 12.0-15.5 g/dL. Estrogen affects platelet function.
-- Unknown gender: Note that reference ranges and clinical significance may vary.
+- Male: Higher Hemoglobin (13.5-17.5 g/dL), PCV, and creatinine baselines. Higher cardiovascular risk.
+- Female: Hemoglobin 12.0-15.5 g/dL. Estrogen affects platelet function, lipids, and thyroid.
+  HDL typically higher than males of same age.
+- Unknown gender: Reference ranges and clinical significance may vary — interpret conservatively.
+
+PANEL-SPECIFIC CONTEXT:
+- CBC: Interpret WBC, RBC, platelets, and differential together for complete picture.
+- LFT: Assess transaminases, bilirubin, and synthetic markers (albumin/PT) as a unit.
+- KFT/RFT: Creatinine + BUN/Urea together reflect renal function; eGFR adjusts for age/gender.
+- Lipid: Cardiovascular risk = total picture (LDL, HDL, TG, TC/HDL ratio) not single value.
+- Thyroid: TSH is primary screen; T3/T4 confirm hypo vs. hyperthyroidism.
+- Diabetes: FBS + HbA1c together for diagnosis; HbA1c reflects 3-month glycemic control.
+- Coagulation: PT/INR + aPTT together indicate bleeding or clotting pathway dysfunction.
 
 URGENCY CRITERIA:
-- 'urgent'     → Any CRITICAL value, or ≥2 severe abnormalities, or pancytopenia
+- 'urgent'     → Any CRITICAL value, or ≥2 severe abnormalities across any panel
 - 'prompt'     → Any severe abnormality, or patterns suggesting active disease
 - 'follow-up'  → Mild-moderate isolated abnormalities
 - 'routine'    → All within normal limits or borderline mild

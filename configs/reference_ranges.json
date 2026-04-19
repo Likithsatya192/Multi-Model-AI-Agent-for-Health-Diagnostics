@@ -122,7 +122,7 @@
   },
   "Basophils": {
     "units": ["%"],
-    "reference": { "low": 0, "high": 2 }
+    "reference": { "low": 0, "high": 1 }
   },
   "Band Neutrophils": {
     "units": ["%"],
@@ -154,7 +154,8 @@
     "units": ["mm/hr"],
     "reference": {
       "adult_male":   { "low": 0, "high": 15 },
-      "adult_female": { "low": 0, "high": 20 }
+      "adult_female": { "low": 0, "high": 20 },
+      "child":        { "low": 0, "high": 10 }
     }
   },
   "MPV": {
@@ -170,24 +171,56 @@
     "units": ["%"],
     "reference": { "low": 0.1, "high": 0.5 }
   },
+  "Reticulocyte Count": {
+    "aliases": ["Retic Count", "Reticulocytes Absolute"],
+    "units": ["cumm", "/uL"],
+    "reference": {
+      "adult": { "low": 25000, "high": 75000 },
+      "newborn": { "low": 110000, "high": 450000 },
+      "infant": { "low": 20000, "high": 100000 }
+    }
+  },
+  "Reticulocyte Percentage": {
+    "aliases": ["Retic %", "Reticulocyte %"],
+    "units": ["%"],
+    "reference": {
+      "adult": { "low": 0.5, "high": 2.5 },
+      "newborn": { "low": 2.0, "high": 6.0 },
+      "infant": { "low": 0.5, "high": 3.5 }
+    }
+  },
+  "G6PD": {
+    "aliases": ["G6PD Activity", "Glucose-6-Phosphate Dehydrogenase"],
+    "units": ["U/gHb", "U/g Hb"],
+    "reference": { "low": 4.6, "high": 13.5 }
+  },
 
   "ALT": {
     "aliases": ["SGPT", "Alanine Aminotransferase"],
     "units": ["U/L", "IU/L"],
     "reference": {
       "adult_male":   { "low": 7, "high": 56 },
-      "adult_female": { "low": 7, "high": 45 }
+      "adult_female": { "low": 7, "high": 45 },
+      "child":        { "low": 7, "high": 45 }
     }
   },
   "AST": {
     "aliases": ["SGOT", "Aspartate Aminotransferase"],
     "units": ["U/L", "IU/L"],
-    "reference": { "low": 10, "high": 40 }
+    "reference": {
+      "adult_male":   { "low": 10, "high": 40 },
+      "adult_female": { "low": 10, "high": 32 },
+      "child":        { "low": 10, "high": 40 }
+    }
   },
   "ALP": {
     "aliases": ["Alkaline Phosphatase"],
     "units": ["U/L", "IU/L"],
-    "reference": { "low": 44, "high": 147 }
+    "reference": {
+      "adult":      { "low": 44, "high": 147 },
+      "child":      { "low": 100, "high": 400 },
+      "adolescent": { "low": 50, "high": 300 }
+    }
   },
   "GGT": {
     "aliases": ["Gamma-Glutamyl Transferase", "GGTP"],
@@ -199,7 +232,11 @@
   },
   "Total Bilirubin": {
     "units": ["mg/dL", "umol/L"],
-    "reference": { "low": 0.1, "high": 1.2 }
+    "reference": {
+      "adult":   { "low": 0.1, "high": 1.2 },
+      "newborn": { "low": 0.0, "high": 15.0 },
+      "infant":  { "low": 0.0, "high": 1.5 }
+    }
   },
   "Direct Bilirubin": {
     "units": ["mg/dL", "umol/L"],
@@ -230,12 +267,31 @@
     "units": ["U/L", "IU/L"],
     "reference": { "low": 135, "high": 225 }
   },
+  "Prealbumin": {
+    "aliases": ["Transthyretin", "PAB"],
+    "units": ["mg/dL"],
+    "reference": { "low": 18, "high": 45 }
+  },
+  "Ceruloplasmin": {
+    "units": ["mg/dL"],
+    "reference": {
+      "adult_male":   { "low": 14, "high": 40 },
+      "adult_female": { "low": 20, "high": 60 }
+    }
+  },
+  "Ammonia": {
+    "aliases": ["Blood Ammonia", "NH3", "Plasma Ammonia"],
+    "units": ["ug/dL", "umol/L"],
+    "reference": { "low": 9, "high": 33 }
+  },
 
   "Creatinine": {
     "units": ["mg/dL", "umol/L"],
     "reference": {
       "adult_male":   { "low": 0.74, "high": 1.35 },
-      "adult_female": { "low": 0.59, "high": 1.04 }
+      "adult_female": { "low": 0.59, "high": 1.04 },
+      "child":        { "low": 0.3,  "high": 0.7 },
+      "adolescent":   { "low": 0.5,  "high": 1.0 }
     }
   },
   "BUN": {
@@ -252,13 +308,63 @@
     "units": ["mg/dL", "umol/L"],
     "reference": {
       "adult_male":   { "low": 3.4, "high": 7.0 },
-      "adult_female": { "low": 2.4, "high": 6.0 }
+      "adult_female": { "low": 2.4, "high": 6.0 },
+      "child":        { "low": 2.0, "high": 5.5 }
     }
   },
   "eGFR": {
     "aliases": ["Estimated GFR", "Glomerular Filtration Rate"],
     "units": ["mL/min/1.73m2"],
     "reference": { "low": 60, "high": 200 }
+  },
+  "Cystatin C": {
+    "aliases": ["Cystatin-C"],
+    "units": ["mg/L"],
+    "reference": {
+      "adult_male":   { "low": 0.5, "high": 1.0 },
+      "adult_female": { "low": 0.4, "high": 0.9 },
+      "child":        { "low": 0.5, "high": 1.2 }
+    }
+  },
+  "Transferrin": {
+    "aliases": ["Serum Transferrin"],
+    "units": ["mg/dL", "g/L"],
+    "reference": { "low": 200, "high": 360 }
+  },
+  "Urine Creatinine": {
+    "aliases": ["Urine Creatinine (spot)", "Creatinine Urine"],
+    "units": ["mg/dL"],
+    "reference": { "low": 20, "high": 320 }
+  },
+  "Urine Protein": {
+    "aliases": ["Urine Total Protein", "Protein Urine"],
+    "units": ["mg/dL"],
+    "reference": { "low": 0, "high": 14 }
+  },
+  "24h Urine Protein": {
+    "aliases": ["24 Hour Urine Protein", "Total Urine Protein 24h"],
+    "units": ["mg/day"],
+    "reference": { "low": 0, "high": 150 }
+  },
+  "Microalbumin": {
+    "aliases": ["Urine Microalbumin", "Urine Albumin", "Spot Urine Albumin"],
+    "units": ["mg/L", "ug/mL"],
+    "reference": { "low": 0, "high": 30 }
+  },
+  "ACR": {
+    "aliases": ["Albumin Creatinine Ratio", "Albumin:Creatinine Ratio", "UACR"],
+    "units": ["mg/g"],
+    "reference": { "low": 0, "high": 30 }
+  },
+  "Urine Specific Gravity": {
+    "aliases": ["USG", "Urine SG"],
+    "units": [""],
+    "reference": { "low": 1.005, "high": 1.030 }
+  },
+  "Urine pH": {
+    "aliases": ["Urine Reaction"],
+    "units": [""],
+    "reference": { "low": 4.5, "high": 8.0 }
   },
 
   "Sodium": {
@@ -285,7 +391,11 @@
   "Phosphorus": {
     "aliases": ["Phosphate"],
     "units": ["mg/dL", "mmol/L"],
-    "reference": { "low": 2.5, "high": 4.5 }
+    "reference": {
+      "adult":      { "low": 2.5, "high": 4.5 },
+      "child":      { "low": 4.0, "high": 7.0 },
+      "adolescent": { "low": 3.0, "high": 5.5 }
+    }
   },
   "Magnesium": {
     "units": ["mg/dL", "mmol/L"],
@@ -327,11 +437,43 @@
     "units": ["ratio"],
     "reference": { "low": 0, "high": 3.5 }
   },
+  "Apolipoprotein A1": {
+    "aliases": ["ApoA1", "Apo A-1"],
+    "units": ["mg/dL"],
+    "reference": {
+      "adult_male":   { "low": 110, "high": 180 },
+      "adult_female": { "low": 120, "high": 200 }
+    }
+  },
+  "Apolipoprotein B": {
+    "aliases": ["ApoB", "Apo B"],
+    "units": ["mg/dL"],
+    "reference": { "low": 60, "high": 120 }
+  },
+  "Lipoprotein(a)": {
+    "aliases": ["Lp(a)", "Lpa"],
+    "units": ["mg/dL", "nmol/L"],
+    "reference": { "low": 0, "high": 30 }
+  },
+  "Homocysteine": {
+    "aliases": ["Total Homocysteine", "Plasma Homocysteine"],
+    "units": ["umol/L"],
+    "reference": {
+      "adult_male":   { "low": 5, "high": 15 },
+      "adult_female": { "low": 5, "high": 12 }
+    }
+  },
 
   "TSH": {
     "aliases": ["Thyroid Stimulating Hormone"],
     "units": ["mIU/L", "uIU/mL"],
-    "reference": { "low": 0.4, "high": 4.0 }
+    "reference": {
+      "adult":      { "low": 0.4, "high": 4.0 },
+      "newborn":    { "low": 1.0, "high": 39.0 },
+      "infant":     { "low": 0.6, "high": 10.0 },
+      "child":      { "low": 0.5, "high": 6.0 },
+      "adolescent": { "low": 0.4, "high": 4.5 }
+    }
   },
   "Free T3": {
     "aliases": ["FT3"],
@@ -353,6 +495,26 @@
     "units": ["ug/dL", "nmol/L"],
     "reference": { "low": 4.5, "high": 12.5 }
   },
+  "Anti-TPO": {
+    "aliases": ["Anti-Thyroid Peroxidase", "TPO Ab", "Anti-TPO Antibody"],
+    "units": ["IU/mL"],
+    "reference": { "low": 0, "high": 34 }
+  },
+  "Anti-Tg": {
+    "aliases": ["Anti-Thyroglobulin", "Thyroglobulin Antibody", "TgAb"],
+    "units": ["IU/mL"],
+    "reference": { "low": 0, "high": 115 }
+  },
+  "Thyroglobulin": {
+    "aliases": ["Tg", "Serum Thyroglobulin"],
+    "units": ["ng/mL"],
+    "reference": { "low": 1.6, "high": 59.9 }
+  },
+  "Anti-TRAb": {
+    "aliases": ["TSH Receptor Antibody", "TRAb", "Anti-TSH Receptor"],
+    "units": ["IU/L"],
+    "reference": { "low": 0, "high": 1.75 }
+  },
 
   "Fasting Blood Glucose": {
     "aliases": ["FBS", "FPG"],
@@ -373,6 +535,26 @@
     "aliases": ["Glycated Hemoglobin", "A1c"],
     "units": ["%", "mmol/mol"],
     "reference": { "low": 4.0, "high": 5.6 }
+  },
+  "Insulin": {
+    "aliases": ["Fasting Insulin", "Serum Insulin"],
+    "units": ["uIU/mL", "pmol/L"],
+    "reference": { "low": 2, "high": 25 }
+  },
+  "C-Peptide": {
+    "aliases": ["Connecting Peptide", "C Peptide"],
+    "units": ["ng/mL", "pmol/L"],
+    "reference": { "low": 0.5, "high": 2.0 }
+  },
+  "Fructosamine": {
+    "aliases": ["Glycated Protein", "Glycoprotein"],
+    "units": ["umol/L"],
+    "reference": { "low": 200, "high": 285 }
+  },
+  "HOMA-IR": {
+    "aliases": ["HOMA IR", "Homeostatic Model Assessment of Insulin Resistance"],
+    "units": [""],
+    "reference": { "low": 0, "high": 2.5 }
   },
 
   "Serum Iron": {
@@ -397,7 +579,8 @@
     "units": ["ng/mL", "ug/L"],
     "reference": {
       "adult_male":   { "low": 24, "high": 336 },
-      "adult_female": { "low": 11, "high": 307 }
+      "adult_female": { "low": 11, "high": 307 },
+      "child":        { "low": 7,  "high": 140 }
     }
   },
 
@@ -444,20 +627,356 @@
     "reference": { "low": 0, "high": 3.0 }
   },
 
+  "Troponin I": {
+    "aliases": ["cTnI", "Cardiac Troponin I"],
+    "units": ["ng/mL", "ug/L"],
+    "reference": { "low": 0, "high": 0.04 }
+  },
+  "Troponin T": {
+    "aliases": ["cTnT", "Cardiac Troponin T"],
+    "units": ["ng/mL", "ug/L"],
+    "reference": { "low": 0, "high": 0.01 }
+  },
+  "High-sensitivity Troponin I": {
+    "aliases": ["hsTnI", "hs-TnI", "High Sensitivity Troponin"],
+    "units": ["ng/L"],
+    "reference": {
+      "adult_male":   { "low": 0, "high": 34 },
+      "adult_female": { "low": 0, "high": 16 }
+    }
+  },
+  "BNP": {
+    "aliases": ["Brain Natriuretic Peptide", "B-type Natriuretic Peptide"],
+    "units": ["pg/mL", "ng/L"],
+    "reference": { "low": 0, "high": 100 }
+  },
+  "NT-proBNP": {
+    "aliases": ["N-terminal pro-BNP", "NT proBNP"],
+    "units": ["pg/mL", "ng/L"],
+    "reference": {
+      "adult":      { "low": 0, "high": 125 }
+    }
+  },
+  "CK": {
+    "aliases": ["Creatine Kinase", "CPK", "Creatine Phosphokinase"],
+    "units": ["U/L", "IU/L"],
+    "reference": {
+      "adult_male":   { "low": 38, "high": 174 },
+      "adult_female": { "low": 26, "high": 140 }
+    }
+  },
+  "CK-MB": {
+    "aliases": ["Creatine Kinase MB", "CKMB", "CK MB Fraction"],
+    "units": ["U/L", "IU/L"],
+    "reference": { "low": 0, "high": 25 }
+  },
+  "Myoglobin": {
+    "aliases": ["Serum Myoglobin"],
+    "units": ["ng/mL", "ug/L"],
+    "reference": {
+      "adult_male":   { "low": 28, "high": 72 },
+      "adult_female": { "low": 25, "high": 58 }
+    }
+  },
+
+  "FSH": {
+    "aliases": ["Follicle Stimulating Hormone", "Follicle-Stimulating Hormone"],
+    "units": ["mIU/mL", "IU/L"],
+    "reference": {
+      "adult_male":   { "low": 1.5, "high": 12.4 },
+      "adult_female": { "low": 3.5, "high": 12.5 },
+      "child":        { "low": 0.1, "high": 4.0 }
+    }
+  },
+  "LH": {
+    "aliases": ["Luteinizing Hormone", "Luteinising Hormone"],
+    "units": ["mIU/mL", "IU/L"],
+    "reference": {
+      "adult_male":   { "low": 1.7, "high": 8.6 },
+      "adult_female": { "low": 2.4, "high": 12.6 },
+      "child":        { "low": 0.1, "high": 5.0 }
+    }
+  },
+  "Prolactin": {
+    "aliases": ["PRL", "Serum Prolactin"],
+    "units": ["ng/mL", "mIU/L"],
+    "reference": {
+      "adult_male":   { "low": 2.0, "high": 18.0 },
+      "adult_female": { "low": 2.0, "high": 29.0 }
+    }
+  },
+  "Estradiol": {
+    "aliases": ["E2", "17-Beta Estradiol", "Oestradiol"],
+    "units": ["pg/mL", "pmol/L"],
+    "reference": {
+      "adult_male":   { "low": 8.0, "high": 35.0 },
+      "adult_female": { "low": 12.5, "high": 166.0 },
+      "child":        { "low": 0.0, "high": 25.0 }
+    }
+  },
+  "Progesterone": {
+    "aliases": ["Serum Progesterone"],
+    "units": ["ng/mL", "nmol/L"],
+    "reference": {
+      "adult_male":   { "low": 0.1, "high": 0.84 },
+      "adult_female": { "low": 0.1, "high": 0.9 }
+    }
+  },
+  "Total Testosterone": {
+    "aliases": ["Testosterone", "Serum Testosterone"],
+    "units": ["ng/dL", "nmol/L"],
+    "reference": {
+      "adult_male":   { "low": 270, "high": 1070 },
+      "adult_female": { "low": 15,  "high": 70 },
+      "child":        { "low": 1,   "high": 10 },
+      "adolescent":   { "low": 100, "high": 800 }
+    }
+  },
+  "Free Testosterone": {
+    "aliases": ["Free T", "Free Testosterone (Direct)"],
+    "units": ["pg/mL", "pmol/L"],
+    "reference": {
+      "adult_male":   { "low": 50, "high": 210 },
+      "adult_female": { "low": 1.0, "high": 8.5 }
+    }
+  },
+  "DHEA-S": {
+    "aliases": ["DHEAS", "Dehydroepiandrosterone Sulfate", "DHEA Sulfate"],
+    "units": ["ug/dL", "umol/L"],
+    "reference": {
+      "adult_male":   { "low": 80, "high": 560 },
+      "adult_female": { "low": 35, "high": 430 }
+    }
+  },
+  "SHBG": {
+    "aliases": ["Sex Hormone Binding Globulin"],
+    "units": ["nmol/L"],
+    "reference": {
+      "adult_male":   { "low": 13, "high": 71 },
+      "adult_female": { "low": 18, "high": 114 }
+    }
+  },
+  "AMH": {
+    "aliases": ["Anti-Mullerian Hormone", "Anti-Müllerian Hormone", "Mullerian Inhibiting Substance"],
+    "units": ["ng/mL", "pmol/L"],
+    "reference": { "low": 1.0, "high": 3.5 }
+  },
+  "Beta-hCG": {
+    "aliases": ["hCG", "Human Chorionic Gonadotropin", "B-hCG", "bHCG", "Pregnancy Test"],
+    "units": ["mIU/mL", "IU/L"],
+    "reference": { "low": 0, "high": 5 }
+  },
+  "Cortisol": {
+    "aliases": ["Serum Cortisol", "Morning Cortisol", "8AM Cortisol"],
+    "units": ["ug/dL", "nmol/L"],
+    "reference": { "low": 6.2, "high": 19.4 }
+  },
+  "ACTH": {
+    "aliases": ["Adrenocorticotropic Hormone", "Adrenocorticotropin", "Corticotropin"],
+    "units": ["pg/mL", "pmol/L"],
+    "reference": { "low": 10, "high": 60 }
+  },
+  "Aldosterone": {
+    "aliases": ["Serum Aldosterone", "Plasma Aldosterone"],
+    "units": ["ng/dL", "pmol/L"],
+    "reference": { "low": 3, "high": 35 }
+  },
+  "Renin": {
+    "aliases": ["Plasma Renin Activity", "PRA", "Renin Activity"],
+    "units": ["ng/mL/hr"],
+    "reference": { "low": 0.2, "high": 2.3 }
+  },
+  "PTH": {
+    "aliases": ["Parathyroid Hormone", "Parathormone", "iPTH", "Intact PTH"],
+    "units": ["pg/mL", "pmol/L"],
+    "reference": { "low": 15, "high": 65 }
+  },
+  "IGF-1": {
+    "aliases": ["Insulin-like Growth Factor 1", "Somatomedin C", "IGF1"],
+    "units": ["ng/mL", "nmol/L"],
+    "reference": {
+      "adult": { "low": 88, "high": 246 }
+    }
+  },
+  "Growth Hormone": {
+    "aliases": ["GH", "Somatotropin", "Human Growth Hormone", "HGH"],
+    "units": ["ng/mL", "mIU/L"],
+    "reference": {
+      "adult_male":   { "low": 0, "high": 3.0 },
+      "adult_female": { "low": 0, "high": 8.0 }
+    }
+  },
+
+  "CEA": {
+    "aliases": ["Carcinoembryonic Antigen"],
+    "units": ["ng/mL", "ug/L"],
+    "reference": { "low": 0, "high": 5.0 }
+  },
+  "CA-125": {
+    "aliases": ["CA 125", "Cancer Antigen 125", "Ovarian Cancer Antigen"],
+    "units": ["U/mL", "kU/L"],
+    "reference": { "low": 0, "high": 35 }
+  },
+  "CA 19-9": {
+    "aliases": ["CA19-9", "Cancer Antigen 19-9", "Carbohydrate Antigen 19-9"],
+    "units": ["U/mL", "kU/L"],
+    "reference": { "low": 0, "high": 37 }
+  },
+  "CA 15-3": {
+    "aliases": ["CA15-3", "Cancer Antigen 15-3"],
+    "units": ["U/mL", "kU/L"],
+    "reference": { "low": 0, "high": 31 }
+  },
+  "CA 72-4": {
+    "aliases": ["CA72-4", "TAG-72"],
+    "units": ["U/mL", "kU/L"],
+    "reference": { "low": 0, "high": 6.9 }
+  },
+  "AFP": {
+    "aliases": ["Alpha-Fetoprotein", "Alpha Fetoprotein"],
+    "units": ["ng/mL", "IU/mL"],
+    "reference": { "low": 0, "high": 10 }
+  },
+  "NSE": {
+    "aliases": ["Neuron-Specific Enolase", "Neuron Specific Enolase"],
+    "units": ["ng/mL", "ug/L"],
+    "reference": { "low": 0, "high": 17 }
+  },
+  "CYFRA 21-1": {
+    "aliases": ["CYFRA21-1", "Cytokeratin-19 Fragment"],
+    "units": ["ng/mL"],
+    "reference": { "low": 0, "high": 3.3 }
+  },
+  "PSA": {
+    "aliases": ["Prostate Specific Antigen", "Total PSA"],
+    "units": ["ng/mL"],
+    "reference": { "low": 0, "high": 4.0 }
+  },
+  "Free PSA": {
+    "aliases": ["Free Prostate Specific Antigen", "fPSA"],
+    "units": ["ng/mL"],
+    "reference": { "low": 0, "high": 1.5 }
+  },
+  "Beta-2 Microglobulin": {
+    "aliases": ["B2M", "B2 Microglobulin", "Beta2 Microglobulin"],
+    "units": ["mg/L", "ug/mL"],
+    "reference": { "low": 0.8, "high": 2.4 }
+  },
+
+  "Rheumatoid Factor": {
+    "aliases": ["RF", "RA Factor", "Rheumatoid Factor (RF)"],
+    "units": ["IU/mL", "U/mL"],
+    "reference": { "low": 0, "high": 20 }
+  },
+  "Anti-CCP": {
+    "aliases": ["Anti-CCP Antibody", "Anti-Cyclic Citrullinated Peptide", "ACPA"],
+    "units": ["U/mL"],
+    "reference": { "low": 0, "high": 20 }
+  },
+  "ANA": {
+    "aliases": ["Antinuclear Antibody", "Anti-Nuclear Antibody", "ANA Screen"],
+    "units": ["titer", "index"],
+    "reference": { "low": 0, "high": 1.0 }
+  },
+  "Anti-dsDNA": {
+    "aliases": ["Anti-Double Stranded DNA", "Anti ds-DNA", "dsDNA Antibody"],
+    "units": ["IU/mL", "U/mL"],
+    "reference": { "low": 0, "high": 30 }
+  },
+  "C3 Complement": {
+    "aliases": ["C3", "Complement C3", "Complement Component 3"],
+    "units": ["mg/dL"],
+    "reference": { "low": 83, "high": 193 }
+  },
+  "C4 Complement": {
+    "aliases": ["C4", "Complement C4", "Complement Component 4"],
+    "units": ["mg/dL"],
+    "reference": { "low": 16, "high": 47 }
+  },
+  "Anti-Streptolysin O": {
+    "aliases": ["ASO", "ASOT", "ASO Titre", "Streptolysin O Antibody"],
+    "units": ["IU/mL"],
+    "reference": { "low": 0, "high": 200 }
+  },
+
+  "IgG": {
+    "aliases": ["Immunoglobulin G", "Serum IgG"],
+    "units": ["mg/dL", "g/L"],
+    "reference": {
+      "adult": { "low": 700, "high": 1600 },
+      "child": { "low": 300, "high": 1400 }
+    }
+  },
+  "IgA": {
+    "aliases": ["Immunoglobulin A", "Serum IgA"],
+    "units": ["mg/dL", "g/L"],
+    "reference": {
+      "adult": { "low": 70, "high": 400 },
+      "child": { "low": 15, "high": 250 }
+    }
+  },
+  "IgM": {
+    "aliases": ["Immunoglobulin M", "Serum IgM"],
+    "units": ["mg/dL", "g/L"],
+    "reference": {
+      "adult_male":   { "low": 40,  "high": 230 },
+      "adult_female": { "low": 40,  "high": 280 },
+      "child":        { "low": 20,  "high": 220 }
+    }
+  },
+  "IgE": {
+    "aliases": ["Total IgE", "Immunoglobulin E", "Serum IgE"],
+    "units": ["IU/mL", "kU/L"],
+    "reference": { "low": 0, "high": 100 }
+  },
+
   "Vitamin D": {
-    "aliases": ["25-OH Vitamin D", "Calcidiol"],
+    "aliases": ["25-OH Vitamin D", "Calcidiol", "25-Hydroxyvitamin D"],
     "units": ["ng/mL", "nmol/L"],
     "reference": { "low": 30, "high": 100 }
   },
   "Vitamin B12": {
-    "aliases": ["Cobalamin"],
+    "aliases": ["Cobalamin", "Cyanocobalamin"],
     "units": ["pg/mL", "pmol/L"],
     "reference": { "low": 200, "high": 900 }
   },
   "Folate": {
-    "aliases": ["Folic Acid"],
+    "aliases": ["Folic Acid", "Serum Folate"],
     "units": ["ng/mL", "nmol/L"],
     "reference": { "low": 3.0, "high": 17.0 }
+  },
+  "Vitamin A": {
+    "aliases": ["Retinol", "Serum Vitamin A"],
+    "units": ["ug/dL", "umol/L"],
+    "reference": { "low": 30, "high": 80 }
+  },
+  "Vitamin E": {
+    "aliases": ["Alpha-Tocopherol", "Tocopherol"],
+    "units": ["mg/L", "umol/L"],
+    "reference": { "low": 5.0, "high": 20.0 }
+  },
+  "Vitamin C": {
+    "aliases": ["Ascorbic Acid", "L-Ascorbic Acid"],
+    "units": ["mg/dL", "umol/L"],
+    "reference": { "low": 0.4, "high": 2.0 }
+  },
+  "Zinc": {
+    "aliases": ["Serum Zinc", "Plasma Zinc"],
+    "units": ["ug/dL", "umol/L"],
+    "reference": { "low": 70, "high": 120 }
+  },
+  "Copper": {
+    "aliases": ["Serum Copper", "Plasma Copper"],
+    "units": ["ug/dL", "umol/L"],
+    "reference": {
+      "adult_male":   { "low": 70,  "high": 140 },
+      "adult_female": { "low": 80,  "high": 155 }
+    }
+  },
+  "Selenium": {
+    "aliases": ["Serum Selenium", "Plasma Selenium"],
+    "units": ["ng/mL", "umol/L"],
+    "reference": { "low": 70, "high": 150 }
   },
 
   "Amylase": {
@@ -469,9 +988,65 @@
     "reference": { "low": 10, "high": 140 }
   },
 
-  "PSA": {
-    "aliases": ["Prostate Specific Antigen"],
+  "Lactic Acid": {
+    "aliases": ["Lactate", "Blood Lactate", "Serum Lactate"],
+    "units": ["mmol/L", "mg/dL"],
+    "reference": { "low": 0.5, "high": 2.2 }
+  },
+
+  "Osteocalcin": {
+    "aliases": ["Bone GLA Protein", "BGP"],
     "units": ["ng/mL"],
-    "reference": { "low": 0, "high": 4.0 }
+    "reference": {
+      "adult_male":   { "low": 3.0, "high": 40.0 },
+      "adult_female": { "low": 5.0, "high": 27.0 }
+    }
+  },
+  "Bone ALP": {
+    "aliases": ["Bone-Specific Alkaline Phosphatase", "BALP", "Bone Alkaline Phosphatase"],
+    "units": ["U/L"],
+    "reference": {
+      "adult_male":   { "low": 14.2, "high": 42.7 },
+      "adult_female": { "low": 11.6, "high": 29.6 }
+    }
+  },
+  "C-Telopeptide": {
+    "aliases": ["CTx", "C-Terminal Telopeptide", "Serum CTx", "Beta-CrossLaps"],
+    "units": ["ng/mL"],
+    "reference": {
+      "adult_male":   { "low": 0.016, "high": 0.584 },
+      "adult_female": { "low": 0.010, "high": 0.573 }
+    }
+  },
+
+  "Dengue NS1 Antigen": {
+    "aliases": ["NS1 Antigen", "Dengue NS1", "NS1 Ag"],
+    "units": ["qualitative"],
+    "reference": { "low": 0, "high": 0 }
+  },
+  "Widal Test": {
+    "aliases": ["Widal", "Typhidot", "Salmonella Antibody"],
+    "units": ["titer"],
+    "reference": { "low": 0, "high": 80 }
+  },
+  "HBsAg": {
+    "aliases": ["Hepatitis B Surface Antigen", "Hepatitis B Ag", "HBs Antigen"],
+    "units": ["S/CO"],
+    "reference": { "low": 0, "high": 1.0 }
+  },
+  "Anti-HCV": {
+    "aliases": ["Hepatitis C Antibody", "HCV Antibody", "Anti HCV"],
+    "units": ["S/CO"],
+    "reference": { "low": 0, "high": 1.0 }
+  },
+  "Anti-HBs": {
+    "aliases": ["Hepatitis B Surface Antibody", "HBs Antibody"],
+    "units": ["mIU/mL"],
+    "reference": { "low": 10, "high": 1000 }
+  },
+  "HIV Antibody": {
+    "aliases": ["HIV 1/2 Antibody", "Anti-HIV", "HIV Screen"],
+    "units": ["S/CO"],
+    "reference": { "low": 0, "high": 1.0 }
   }
 }

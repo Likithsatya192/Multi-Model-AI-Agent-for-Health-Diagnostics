@@ -412,8 +412,292 @@ PARAM_ALIASES: dict[str, str] = {
     "serum folic acid": "Folate",
 
     "psa": "PSA", "prostate specific antigen": "PSA", "total psa": "PSA",
+    "free psa": "Free PSA", "fpsa": "Free PSA", "free prostate specific antigen": "Free PSA",
+
+    # ══════════════════ HAEMATOLOGY EXTENDED ══════════════════
+
+    "reticulocyte count": "Reticulocyte Count", "retic count": "Reticulocyte Count",
+    "reticulocytes": "Reticulocyte Count", "absolute reticulocytes": "Reticulocyte Count",
+    "reticulocyte percentage": "Reticulocyte Percentage", "retic %": "Reticulocyte Percentage",
+    "reticulocyte %": "Reticulocyte Percentage", "reticulocytes %": "Reticulocyte Percentage",
+
+    "g6pd": "G6PD", "g6pd activity": "G6PD",
+    "glucose-6-phosphate dehydrogenase": "G6PD", "glucose 6 phosphate dehydrogenase": "G6PD",
+    "g-6-p-d": "G6PD",
+
+    # ══════════════════ CARDIAC MARKERS ══════════════════
+
+    "troponin i": "Troponin I", "ctni": "Troponin I", "cardiac troponin i": "Troponin I",
+    "troponin": "Troponin I", "cardiac troponin": "Troponin I",
+    "troponin t": "Troponin T", "ctnt": "Troponin T", "cardiac troponin t": "Troponin T",
+    "high sensitivity troponin i": "High-sensitivity Troponin I",
+    "high-sensitivity troponin i": "High-sensitivity Troponin I",
+    "hs troponin i": "High-sensitivity Troponin I", "hstni": "High-sensitivity Troponin I",
+    "hs-tni": "High-sensitivity Troponin I",
+
+    "bnp": "BNP", "brain natriuretic peptide": "BNP", "b-type natriuretic peptide": "BNP",
+    "nt-probnp": "NT-proBNP", "nt probnp": "NT-proBNP",
+    "n-terminal pro-bnp": "NT-proBNP", "n terminal pro bnp": "NT-proBNP",
+
+    "ck": "CK", "creatine kinase": "CK", "cpk": "CK", "creatine phosphokinase": "CK",
+    "serum ck": "CK", "serum cpk": "CK",
+    "ck-mb": "CK-MB", "ck mb": "CK-MB", "creatine kinase mb": "CK-MB",
+    "ck-mb fraction": "CK-MB", "ckmb": "CK-MB",
+
+    "myoglobin": "Myoglobin", "serum myoglobin": "Myoglobin",
+
+    "homocysteine": "Homocysteine", "total homocysteine": "Homocysteine",
+    "plasma homocysteine": "Homocysteine", "hcy": "Homocysteine",
+
+    # ══════════════════ LIPID EXTENDED ══════════════════
+
+    "apolipoprotein a1": "Apolipoprotein A1", "apo a-1": "Apolipoprotein A1",
+    "apo a1": "Apolipoprotein A1", "apoa1": "Apolipoprotein A1",
+    "apolipoprotein b": "Apolipoprotein B", "apo b": "Apolipoprotein B",
+    "apob": "Apolipoprotein B", "apo b-100": "Apolipoprotein B",
+    "lipoprotein(a)": "Lipoprotein(a)", "lp(a)": "Lipoprotein(a)",
+    "lpa": "Lipoprotein(a)", "lipoprotein a": "Lipoprotein(a)",
+
+    # ══════════════════ THYROID EXTENDED ══════════════════
+
+    "anti-tpo": "Anti-TPO", "anti tpo": "Anti-TPO",
+    "thyroid peroxidase antibody": "Anti-TPO", "tpo ab": "Anti-TPO",
+    "anti-thyroid peroxidase": "Anti-TPO", "tpo antibody": "Anti-TPO",
+    "tpoab": "Anti-TPO",
+
+    "anti-tg": "Anti-Tg", "anti tg": "Anti-Tg",
+    "thyroglobulin antibody": "Anti-Tg", "tg ab": "Anti-Tg",
+    "anti-thyroglobulin": "Anti-Tg", "tgab": "Anti-Tg",
+
+    "thyroglobulin": "Thyroglobulin", "tg": "Thyroglobulin", "serum thyroglobulin": "Thyroglobulin",
+
+    "anti-trab": "Anti-TRAb", "trab": "Anti-TRAb",
+    "tsh receptor antibody": "Anti-TRAb", "anti-tsh receptor": "Anti-TRAb",
+    "thyroid stimulating antibody": "Anti-TRAb", "tsh receptor ab": "Anti-TRAb",
+
+    # ══════════════════ REPRODUCTIVE / SEX HORMONES ══════════════════
+
+    "fsh": "FSH", "follicle stimulating hormone": "FSH",
+    "follicle-stimulating hormone": "FSH", "serum fsh": "FSH",
+
+    "lh": "LH", "luteinizing hormone": "LH", "luteinising hormone": "LH",
+    "serum lh": "LH",
+
+    "prolactin": "Prolactin", "prl": "Prolactin", "serum prolactin": "Prolactin",
+
+    "estradiol": "Estradiol", "e2": "Estradiol", "oestradiol": "Estradiol",
+    "17-beta estradiol": "Estradiol", "17beta estradiol": "Estradiol",
+    "serum estradiol": "Estradiol",
+
+    "progesterone": "Progesterone", "serum progesterone": "Progesterone",
+    "plasma progesterone": "Progesterone",
+
+    "testosterone": "Total Testosterone", "total testosterone": "Total Testosterone",
+    "serum testosterone": "Total Testosterone", "s. testosterone": "Total Testosterone",
+
+    "free testosterone": "Free Testosterone", "free t": "Free Testosterone",
+    "free testosterone (direct)": "Free Testosterone",
+
+    "dhea-s": "DHEA-S", "dheas": "DHEA-S",
+    "dehydroepiandrosterone sulfate": "DHEA-S", "dhea sulfate": "DHEA-S",
+    "dehydroepiandrosterone sulphate": "DHEA-S",
+
+    "shbg": "SHBG", "sex hormone binding globulin": "SHBG",
+    "sex-hormone binding globulin": "SHBG",
+
+    "amh": "AMH", "anti-mullerian hormone": "AMH", "anti-müllerian hormone": "AMH",
+    "mullerian inhibiting substance": "AMH", "mis": "AMH",
+
+    "beta-hcg": "Beta-hCG", "hcg": "Beta-hCG", "b-hcg": "Beta-hCG",
+    "bhcg": "Beta-hCG", "human chorionic gonadotropin": "Beta-hCG",
+    "human chorionic gonadotrophin": "Beta-hCG", "pregnancy hormone": "Beta-hCG",
+    "beta hcg": "Beta-hCG",
+
+    # ══════════════════ ADRENAL HORMONES ══════════════════
+
+    "cortisol": "Cortisol", "serum cortisol": "Cortisol",
+    "morning cortisol": "Cortisol", "8am cortisol": "Cortisol",
+    "plasma cortisol": "Cortisol",
+
+    "acth": "ACTH", "adrenocorticotropic hormone": "ACTH",
+    "adrenocorticotropin": "ACTH", "corticotropin": "ACTH",
+    "plasma acth": "ACTH",
+
+    "aldosterone": "Aldosterone", "serum aldosterone": "Aldosterone",
+    "plasma aldosterone": "Aldosterone",
+
+    "renin": "Renin", "plasma renin activity": "Renin",
+    "pra": "Renin", "renin activity": "Renin",
+
+    # ══════════════════ PARATHYROID / GROWTH ══════════════════
+
+    "pth": "PTH", "parathyroid hormone": "PTH", "parathormone": "PTH",
+    "intact pth": "PTH", "ipth": "PTH", "serum pth": "PTH",
+
+    "igf-1": "IGF-1", "igf1": "IGF-1",
+    "insulin-like growth factor 1": "IGF-1", "somatomedin c": "IGF-1",
+    "insulin like growth factor 1": "IGF-1",
+
+    "growth hormone": "Growth Hormone", "gh": "Growth Hormone",
+    "somatotropin": "Growth Hormone", "hgh": "Growth Hormone",
+    "human growth hormone": "Growth Hormone",
+
+    # ══════════════════ DIABETES EXTENDED ══════════════════
+
+    "insulin": "Insulin", "fasting insulin": "Insulin", "serum insulin": "Insulin",
+    "plasma insulin": "Insulin",
+
+    "c-peptide": "C-Peptide", "c peptide": "C-Peptide",
+    "connecting peptide": "C-Peptide", "serum c-peptide": "C-Peptide",
+
+    "fructosamine": "Fructosamine", "glycated protein": "Fructosamine",
+    "serum fructosamine": "Fructosamine",
+
+    "homa-ir": "HOMA-IR", "homa ir": "HOMA-IR",
+    "homeostatic model assessment": "HOMA-IR",
+
+    # ══════════════════ TUMOUR MARKERS ══════════════════
+
+    "cea": "CEA", "carcinoembryonic antigen": "CEA", "s. cea": "CEA",
+
+    "ca-125": "CA-125", "ca 125": "CA-125", "cancer antigen 125": "CA-125",
+    "ovarian cancer antigen": "CA-125",
+
+    "ca 19-9": "CA 19-9", "ca19-9": "CA 19-9", "ca-19-9": "CA 19-9",
+    "cancer antigen 19-9": "CA 19-9", "carbohydrate antigen 19-9": "CA 19-9",
+
+    "ca 15-3": "CA 15-3", "ca15-3": "CA 15-3", "ca-15-3": "CA 15-3",
+    "cancer antigen 15-3": "CA 15-3",
+
+    "ca 72-4": "CA 72-4", "ca72-4": "CA 72-4", "tag-72": "CA 72-4",
+
+    "afp": "AFP", "alpha-fetoprotein": "AFP", "alpha fetoprotein": "AFP",
+    "serum afp": "AFP",
+
+    "nse": "NSE", "neuron-specific enolase": "NSE", "neuron specific enolase": "NSE",
+
+    "cyfra 21-1": "CYFRA 21-1", "cyfra21-1": "CYFRA 21-1",
+    "cytokeratin-19 fragment": "CYFRA 21-1", "cytokeratin 19 fragment": "CYFRA 21-1",
+
+    "beta-2 microglobulin": "Beta-2 Microglobulin", "b2m": "Beta-2 Microglobulin",
+    "beta2 microglobulin": "Beta-2 Microglobulin", "b2 microglobulin": "Beta-2 Microglobulin",
+
+    # ══════════════════ AUTOIMMUNE / RHEUMATOLOGY ══════════════════
+
+    "rheumatoid factor": "Rheumatoid Factor", "rf": "Rheumatoid Factor",
+    "ra factor": "Rheumatoid Factor", "rheumatoid factor (rf)": "Rheumatoid Factor",
+
+    "anti-ccp": "Anti-CCP", "anti ccp": "Anti-CCP",
+    "anti-cyclic citrullinated peptide": "Anti-CCP",
+    "cyclic citrullinated peptide antibody": "Anti-CCP", "acpa": "Anti-CCP",
+
+    "ana": "ANA", "antinuclear antibody": "ANA", "anti-nuclear antibody": "ANA",
+    "ana screen": "ANA", "antinuclear ab": "ANA",
+
+    "anti-dsdna": "Anti-dsDNA", "anti ds-dna": "Anti-dsDNA",
+    "anti double stranded dna": "Anti-dsDNA", "anti dsdna": "Anti-dsDNA",
+    "ds dna antibody": "Anti-dsDNA", "double stranded dna antibody": "Anti-dsDNA",
+
+    "c3 complement": "C3 Complement", "c3": "C3 Complement",
+    "complement c3": "C3 Complement", "complement component 3": "C3 Complement",
+
+    "c4 complement": "C4 Complement", "c4": "C4 Complement",
+    "complement c4": "C4 Complement", "complement component 4": "C4 Complement",
+
+    "aso": "Anti-Streptolysin O", "asot": "Anti-Streptolysin O",
+    "anti-streptolysin o": "Anti-Streptolysin O",
+    "anti streptolysin o": "Anti-Streptolysin O", "aso titre": "Anti-Streptolysin O",
+    "streptolysin o antibody": "Anti-Streptolysin O", "aso titer": "Anti-Streptolysin O",
+
+    # ══════════════════ IMMUNOGLOBULINS ══════════════════
+
+    "igg": "IgG", "immunoglobulin g": "IgG", "serum igg": "IgG",
+    "iga": "IgA", "immunoglobulin a": "IgA", "serum iga": "IgA",
+    "igm": "IgM", "immunoglobulin m": "IgM", "serum igm": "IgM",
+    "ige": "IgE", "total ige": "IgE", "immunoglobulin e": "IgE",
+    "serum ige": "IgE",
+
+    # ══════════════════ NUTRITIONAL / VITAMINS ══════════════════
+
+    "vitamin a": "Vitamin A", "retinol": "Vitamin A", "serum vitamin a": "Vitamin A",
+    "vitamin e": "Vitamin E", "alpha-tocopherol": "Vitamin E", "tocopherol": "Vitamin E",
+    "vitamin c": "Vitamin C", "ascorbic acid": "Vitamin C", "l-ascorbic acid": "Vitamin C",
+    "zinc": "Zinc", "serum zinc": "Zinc", "plasma zinc": "Zinc",
+    "copper": "Copper", "serum copper": "Copper", "plasma copper": "Copper",
+    "selenium": "Selenium", "serum selenium": "Selenium",
+    "ceruloplasmin": "Ceruloplasmin", "serum ceruloplasmin": "Ceruloplasmin",
+    "prealbumin": "Prealbumin", "transthyretin": "Prealbumin", "pab": "Prealbumin",
+    "pre-albumin": "Prealbumin",
+
+    # ══════════════════ RENAL / URINE ══════════════════
+
+    "cystatin c": "Cystatin C", "cystatin-c": "Cystatin C", "serum cystatin c": "Cystatin C",
+    "transferrin": "Transferrin", "serum transferrin": "Transferrin",
+    "urine protein": "Urine Protein", "urine total protein": "Urine Protein",
+    "protein urine": "Urine Protein", "u/r protein": "Urine Protein",
+    "24h urine protein": "24h Urine Protein", "24 hour urine protein": "24h Urine Protein",
+    "urine protein 24h": "24h Urine Protein",
+    "microalbumin": "Microalbumin", "urine microalbumin": "Microalbumin",
+    "urine albumin": "Microalbumin", "spot urine albumin": "Microalbumin",
+    "acr": "ACR", "albumin creatinine ratio": "ACR",
+    "albumin:creatinine ratio": "ACR", "uacr": "ACR",
+    "urine creatinine": "Urine Creatinine", "creatinine urine": "Urine Creatinine",
+    "urine specific gravity": "Urine Specific Gravity", "usg": "Urine Specific Gravity",
+    "urine sg": "Urine Specific Gravity", "specific gravity": "Urine Specific Gravity",
+    "urine ph": "Urine pH", "urine reaction": "Urine pH", "u/r ph": "Urine pH",
+
+    # ══════════════════ METABOLIC / MISC ══════════════════
+
+    "lactic acid": "Lactic Acid", "lactate": "Lactic Acid",
+    "blood lactate": "Lactic Acid", "serum lactate": "Lactic Acid",
+    "ammonia": "Ammonia", "blood ammonia": "Ammonia",
+    "nh3": "Ammonia", "plasma ammonia": "Ammonia",
+
+    "homocysteine": "Homocysteine", "total homocysteine": "Homocysteine",
+    "plasma homocysteine": "Homocysteine", "hcy": "Homocysteine",
+
+    "fructosamine": "Fructosamine", "glycated protein": "Fructosamine",
+
+    # ══════════════════ BONE METABOLISM ══════════════════
+
+    "osteocalcin": "Osteocalcin", "bone gla protein": "Osteocalcin", "bgp": "Osteocalcin",
+    "bone alp": "Bone ALP", "bone alkaline phosphatase": "Bone ALP",
+    "bone-specific alkaline phosphatase": "Bone ALP", "balp": "Bone ALP",
+    "c-telopeptide": "C-Telopeptide", "ctx": "C-Telopeptide",
+    "c-terminal telopeptide": "C-Telopeptide", "serum ctx": "C-Telopeptide",
+    "beta-crosslaps": "C-Telopeptide",
+
+    # ══════════════════ INFECTIOUS / SEROLOGY ══════════════════
+
+    "dengue ns1 antigen": "Dengue NS1 Antigen", "ns1 antigen": "Dengue NS1 Antigen",
+    "dengue ns1": "Dengue NS1 Antigen", "ns1 ag": "Dengue NS1 Antigen",
+    "widal test": "Widal Test", "widal": "Widal Test",
+    "typhidot": "Widal Test", "salmonella antibody": "Widal Test",
+    "hbsag": "HBsAg", "hepatitis b surface antigen": "HBsAg",
+    "hepatitis b ag": "HBsAg", "hbs antigen": "HBsAg",
+    "anti-hcv": "Anti-HCV", "hepatitis c antibody": "Anti-HCV",
+    "hcv antibody": "Anti-HCV", "anti hcv": "Anti-HCV",
+    "anti-hbs": "Anti-HBs", "hepatitis b surface antibody": "Anti-HBs",
+    "hbs antibody": "Anti-HBs",
+    "hiv antibody": "HIV Antibody", "hiv 1/2 antibody": "HIV Antibody",
+    "anti-hiv": "HIV Antibody", "hiv screen": "HIV Antibody",
 }
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Differential count: % name → Absolute name, keyed by unit
+# Many reports print both a % section (DLC) and an absolute section.
+# Both rows share the same raw_name (e.g. "Lymphocytes"), but units differ.
+# Without this map the absolute count silently overwrites the % reading.
+# ─────────────────────────────────────────────────────────────────────────────
+_DIFF_PCT_TO_ABS: dict[str, str] = {
+    "Neutrophils":  "Absolute Neutrophils",
+    "Lymphocytes":  "Absolute Lymphocytes",
+    "Monocytes":    "Absolute Monocytes",
+    "Eosinophils":  "Absolute Eosinophils",
+    "Basophils":    "Absolute Basophils",
+}
+_PCT_UNIT_TOKENS = {"%", "percent", "pct", "per cent"}
 
 # Pydantic removed — we parse JSON directly for robustness and token efficiency
 
@@ -969,6 +1253,17 @@ def extract_parameters_node(state):
         ref_low = _parse_float(lv.get("ref_low"))
         ref_high = _parse_float(lv.get("ref_high"))
         unit_raw = lv.get("unit")
+
+        # Unit-aware reclassification for differential counts.
+        # If canonical is a % differential (e.g. "Lymphocytes") but the
+        # extracted unit is an absolute count unit (thou/mm3, cumm, /uL …),
+        # remap to the absolute canonical so both rows are preserved separately.
+        if canonical in _DIFF_PCT_TO_ABS and unit_raw:
+            unit_lower = unit_raw.strip().lower()
+            is_pct = any(tok in unit_lower for tok in _PCT_UNIT_TOKENS)
+            if not is_pct:
+                canonical = _DIFF_PCT_TO_ABS[canonical]
+                matched = True
 
         # OCR-garbage gate: an unrecognized parameter name is only trusted when
         # it has BOTH a unit AND a reference range from the report (strong signal

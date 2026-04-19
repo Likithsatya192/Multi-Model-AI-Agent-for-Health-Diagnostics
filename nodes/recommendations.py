@@ -69,7 +69,8 @@ def recommendations_node(state):
     parser = PydanticOutputParser(pydantic_object=RecsOutput)
 
     prompt = f"""You are a clinical AI generating personalised, actionable health recommendations
-based on a patient's CBC blood test analysis.
+based on a patient's medical laboratory test results.
+The panel may be CBC, LFT, KFT, Lipid, Thyroid, Diabetes, Coagulation, Iron, Electrolytes, or a comprehensive/mixed panel. Base recommendations on the ACTUAL findings provided — do not assume CBC-only context.
 
 ═══════════════════════════════════════
 PATIENT CONTEXT
@@ -111,9 +112,14 @@ PRIORITY LEVELS — assign in this order:
 SPECIFICITY RULES:
 - Each recommendation must reference the SPECIFIC abnormal finding it addresses.
 - Do NOT give generic advice like "eat healthy" without tying it to a specific pattern.
-- If Hemoglobin/Iron low → specify iron-rich foods + Vitamin C for absorption.
-- If WBC elevated → do NOT recommend self-treatment; refer to physician immediately.
-- If Platelets low → advise avoiding NSAIDs/aspirin, avoid trauma.
+- CBC: Low Hemoglobin/Iron → iron-rich foods + Vitamin C. High WBC → physician referral. Low Platelets → avoid NSAIDs/aspirin.
+- LFT: High ALT/AST → avoid alcohol, hepatotoxic drugs; evaluate cause. Low Albumin → nutritional assessment.
+- KFT: High Creatinine/Urea → hydration, nephrology referral. High Uric Acid → low-purine diet, hydration.
+- Lipid: High LDL → reduce saturated fat, increase soluble fibre; statin discussion with doctor. Low HDL → exercise.
+- Thyroid: High TSH → endocrinology referral; avoid self-medicating with supplements.
+- Diabetes: High FBS/HbA1c → dietary consult, glycaemic monitoring, physician review.
+- Coagulation: Abnormal PT/INR → medication review (anticoagulants), haematology referral.
+- Electrolytes: Critical Potassium/Sodium → immediate medical evaluation — do NOT self-supplement.
 - Always end critical/urgent recommendations with "consult your doctor."
 
 SAFETY RULES:

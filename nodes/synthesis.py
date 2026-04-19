@@ -64,8 +64,9 @@ def synthesis_node(state):
         f"Gender: {patient_info.get('Gender', 'Unknown')}"
     )
 
-    prompt = f"""You are an AI medical report writer producing a professional CBC analysis report for a patient.
+    prompt = f"""You are an AI medical report writer producing a professional medical laboratory analysis report for a patient.
 Write in clear, empathetic, layperson-friendly language while maintaining medical accuracy.
+The report may cover any panel type: CBC, LFT, KFT, Lipid Panel, Thyroid, Diabetes, Coagulation, Iron Studies, Electrolytes, or a comprehensive/mixed panel. Adapt your language to the actual findings.
 
 ═══════════════════════════════════════
 PATIENT INFORMATION

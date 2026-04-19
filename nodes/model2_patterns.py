@@ -158,6 +158,135 @@ def model2_patterns_node(state):
         - Poor Glycemic Control:    HIGH HbA1c (>8% = poor; >10% = very poor)
 
         ====================
+        COAGULATION PATTERNS
+        ====================
+
+        - Prolonged PT/INR:        HIGH PT + HIGH INR (anticoagulant effect or liver disease)
+        - DIC (Disseminated Intravascular Coagulation): HIGH D-Dimer + LOW Fibrinogen + LOW Platelets
+        - Hypercoagulable State:   HIGH D-Dimer without obvious cause
+        - Coagulopathy:            HIGH PT + HIGH aPTT (factor deficiency or heparin effect)
+
+        ====================
+        IRON STUDIES PATTERNS
+        ====================
+
+        - Iron Deficiency:         LOW Serum Iron + LOW Ferritin + HIGH TIBC + LOW Transferrin Saturation
+        - Iron Deficiency Anemia:  LOW Hemoglobin + LOW Serum Iron + LOW Ferritin
+        - Iron Overload:           HIGH Serum Iron + HIGH Ferritin + LOW TIBC
+        - Anemia of Chronic Disease: LOW Serum Iron + LOW/NORMAL TIBC + HIGH/NORMAL Ferritin
+
+        ====================
+        INFLAMMATORY MARKERS
+        ====================
+
+        - Acute Inflammation:      HIGH CRP or HIGH hsCRP (>10 mg/L = acute; 3-10 = moderate)
+        - Cardiovascular Risk:     hsCRP 1-3 mg/L = intermediate, >3 = high risk
+        - Elevated ESR:            HIGH ESR (non-specific but suggests inflammation, infection, malignancy)
+
+        ====================
+        REPRODUCTIVE HORMONE PATTERNS
+        ====================
+
+        - Primary Hypogonadism (Male): LOW Testosterone + HIGH FSH + HIGH LH
+        - Secondary Hypogonadism (Male): LOW Testosterone + LOW/NORMAL FSH + LOW/NORMAL LH
+        - PCOS Pattern (Female):   HIGH LH/FSH ratio (>2) + HIGH Testosterone/DHEA-S + LOW/NORMAL FSH
+        - Menopause/Ovarian Failure: HIGH FSH (>25 IU/L) + HIGH LH + LOW Estradiol
+        - Hyperprolactinemia:      HIGH Prolactin (>25 ng/mL in F, >18 in M)
+        - Hypothyroid in Females:  HIGH TSH + menstrual irregularity markers
+
+        ====================
+        ADRENAL PATTERNS
+        ====================
+
+        - Hypercortisolism (Cushing's): HIGH Cortisol + HIGH ACTH (pituitary) or LOW ACTH (adrenal)
+        - Adrenal Insufficiency:   LOW Cortisol + HIGH ACTH (primary) or LOW ACTH (secondary)
+        - Hyperaldosteronism:      HIGH Aldosterone + LOW Potassium
+        - Adrenal Androgen Excess: HIGH DHEA-S + virilization markers
+
+        ====================
+        CARDIAC MARKER PATTERNS
+        ====================
+
+        - Acute Myocardial Infarction (AMI): HIGH Troponin I or T (>0.04 ng/mL) — CRITICAL
+        - Heart Failure:           HIGH BNP (>100 pg/mL) or HIGH NT-proBNP (>125 pg/mL)
+        - Severe Heart Failure:    BNP >400 pg/mL or NT-proBNP >1000 pg/mL
+        - Muscle Injury:           HIGH CK + HIGH Myoglobin (without troponin rise = skeletal)
+        - Rhabdomyolysis:          Very HIGH CK (>1000 U/L) + HIGH Myoglobin
+        - Elevated Homocysteine:   HIGH Homocysteine (>15 umol/L = cardiovascular risk)
+
+        ====================
+        TUMOUR MARKER PATTERNS (SCREENING CONTEXT)
+        ====================
+
+        - Elevated CEA:            HIGH CEA (>5 ng/mL — colorectal, lung, breast cancer screen)
+        - Elevated CA-125:         HIGH CA-125 (>35 U/mL — ovarian cancer risk)
+        - Elevated CA 19-9:        HIGH CA 19-9 (>37 U/mL — pancreatic/biliary cancer risk)
+        - Elevated AFP:            HIGH AFP (>10 ng/mL — hepatocellular/germ cell risk)
+        - Elevated PSA:            HIGH PSA (>4 ng/mL — prostate cancer risk; age-adjusted)
+        - Elevated Beta-hCG:       HIGH Beta-hCG (pregnancy or germ cell tumour context)
+        - CRITICAL: Tumour markers alone do NOT confirm cancer — always refer for clinical evaluation
+
+        ====================
+        AUTOIMMUNE / RHEUMATOLOGY PATTERNS
+        ====================
+
+        - Rheumatoid Arthritis (RA): HIGH RF + HIGH Anti-CCP (Anti-CCP is more specific)
+        - Systemic Lupus (SLE) Screen: HIGH ANA + HIGH Anti-dsDNA + LOW C3/C4
+        - Complement Consumption:  LOW C3 + LOW C4 (active immune complex disease)
+        - Elevated ASO:            HIGH ASO Titer (>200 IU/mL = recent streptococcal infection)
+        - Autoimmune Thyroid:      HIGH Anti-TPO + HIGH Anti-Tg (Hashimoto's or Graves' context)
+
+        ====================
+        NUTRITIONAL DEFICIENCY PATTERNS
+        ====================
+
+        - Vitamin D Deficiency:    LOW Vitamin D (<30 ng/mL) — very common globally
+        - Vitamin D Insufficiency: Vitamin D 20-29 ng/mL
+        - Vitamin B12 Deficiency:  LOW Vitamin B12 (<200 pg/mL) + possibly HIGH MCV
+        - Folate Deficiency:       LOW Folate (<3 ng/mL) + possibly HIGH MCV + Megaloblastic pattern
+        - Megaloblastic Anemia:    LOW Hemoglobin + HIGH MCV + LOW B12 or LOW Folate
+        - Iron Deficiency:         LOW Ferritin (see Iron Studies)
+        - Zinc Deficiency:         LOW Zinc (<70 ug/dL)
+        - Malnutrition:            LOW Prealbumin + LOW Albumin
+
+        ====================
+        BONE METABOLISM PATTERNS
+        ====================
+
+        - Hyperparathyroidism:     HIGH PTH + HIGH Calcium (primary) or LOW Calcium (secondary)
+        - Hypoparathyroidism:      LOW PTH + LOW Calcium
+        - Osteoporosis Markers:    HIGH CTx (bone resorption) + LOW Osteocalcin
+        - Vitamin D Deficiency Bone: LOW Vitamin D + HIGH PTH (secondary hyperparathyroidism)
+        - Paget's Disease Marker:  Very HIGH ALP (bone-specific)
+
+        ====================
+        PANCREATIC PATTERNS
+        ====================
+
+        - Acute Pancreatitis:      HIGH Amylase (>3x ULN) + HIGH Lipase (>3x ULN)
+        - Lipase is more specific: HIGH Lipase alone is stronger indicator than Amylase alone
+
+        ====================
+        METABOLIC PATTERNS
+        ====================
+
+        - Metabolic Syndrome:      HIGH Triglycerides + LOW HDL + HIGH Glucose + HIGH Blood Pressure (clinical)
+        - Hyperuricemia:           HIGH Uric Acid (>7 mg/dL male, >6 female) — gout risk
+        - Lactic Acidosis:         HIGH Lactic Acid (>2.2 mmol/L) — tissue hypoperfusion or metabolic cause
+        - Hyperammonemia:          HIGH Ammonia (>45 ug/dL) — hepatic encephalopathy risk
+
+        ====================
+        INFECTIOUS SEROLOGY PATTERNS
+        ====================
+
+        - Active Hepatitis B:      HBsAg POSITIVE (reactive) — CRITICAL, refer for management
+        - Hepatitis C Screen:      Anti-HCV REACTIVE — needs confirmatory HCV RNA
+        - HIV Screen Reactive:     HIV Antibody REACTIVE — CRITICAL, needs confirmatory Western Blot
+        - Acute Dengue:            NS1 Antigen POSITIVE — dengue infection in febrile phase
+        - Recent Strep Infection:  HIGH ASO Titer
+        For qualitative tests (HBsAg, Anti-HCV, HIV, NS1): reactive/positive = abnormal
+
+        ====================
         RISK SCORING RULES
         ====================
 
